@@ -30,3 +30,16 @@
 *.exe
 *.out
 *.app
+
+.vs/
+out/
+build/
+.vscode/
+**/.DS_Store
+**/CMakeCache.txt
+**/cmake_install.cmake
+**/Makefile
+**/CMakeFiles/
+*.exe
+*.ilk
+*.pdb
