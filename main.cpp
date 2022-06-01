@@ -119,7 +119,9 @@ const std::vector<Model> SceneToLoad = {
 	{"Primitives.gltf", GLTF, "redbricks2b-alb.png", "redbricks2b-norm_hei.png",
 	 "redbricks2b-met_rou_ao.png", {0,0.5, -4.0}, 0.5},
 	{"LargePlane.obj", OBJ, "flat-cobble-moss-alb.png", "flat-cobble-moss-norm_hei.png",
-	 "flat-cobble-moss-met_rou_ao.png", {0,0,0}, 1.0}
+	 "flat-cobble-moss-met_rou_ao.png", {0,0,0}, 1.0},
+	{"rocket.obj", OBJ, "rocket/rocket2_body_BaseColor.png", "rocket/rocket2_body_Normal.png", "rocket/rocket2_body_Metallic.png", {4,0.5f,4}, 1.0},
+	{"blue_missile.obj", OBJ, "blue_missile/missile_diffuse.jpg", "blue_missile/missile_normal.jpg", "blue_missile/missile_ao.jpg", {4,0,6}, .02f}
 };
 
 struct SkyBoxModel {
