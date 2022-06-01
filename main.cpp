@@ -130,7 +130,7 @@ struct SkyBoxModel {
 	const char *TextureFile[6];
 };
 
-const SkyBoxModel SkyBoxToLoad = {"SkyBoxCube.obj", OBJ, {"sky/posx.jpg", "sky/negx.jpg", "sky/posy.jpg", "sky/negy.jpg", "sky/posz.jpg", "sky/negz.jpg"}};
+const SkyBoxModel SkyBoxToLoad = {"SkyBoxCube.obj", OBJ, {"sky/posx.png", "sky/negx.png", "sky/posy.png", "sky/negy.png", "sky/posz.png", "sky/negz.png"}};
 
 struct Vertex {
 	glm::vec3 pos;
