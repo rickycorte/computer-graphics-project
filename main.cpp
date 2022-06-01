@@ -118,10 +118,10 @@ const std::vector<Model> SceneToLoad = {
 	 "rustediron-streaks-met_rou_ao.png", {0,1.0,0}, 0.5},
 	{"Primitives.gltf", GLTF, "redbricks2b-alb.png", "redbricks2b-norm_hei.png",
 	 "redbricks2b-met_rou_ao.png", {0,0.5, -4.0}, 0.5},
-	{"LargePlane.obj", OBJ, "flat-cobble-moss-alb.png", "flat-cobble-moss-norm_hei.png",
-	 "flat-cobble-moss-met_rou_ao.png", {0,0,0}, 1.0},
+	//{"LargePlane.obj", OBJ, "flat-cobble-moss-alb.png", "flat-cobble-moss-norm_hei.png", "flat-cobble-moss-met_rou_ao.png", {0,0,0}, 1.0},
 	{"rocket.obj", OBJ, "rocket/rocket2_body_BaseColor.png", "rocket/rocket2_body_Normal.png", "rocket/rocket2_body_Metallic.png", {4,0.5f,4}, 1.0},
-	{"blue_missile.obj", OBJ, "blue_missile/missile_diffuse.jpg", "blue_missile/missile_normal.jpg", "blue_missile/missile_ao.jpg", {4,0,6}, .02f}
+	{"blue_missile.obj", OBJ, "blue_missile/missile_diffuse.jpg", "blue_missile/missile_normal.jpg", "blue_missile/missile_ao.jpg", {4,0,6}, .02f},
+	{"terrain.obj", OBJ, "terrain/diff.png", "terrain/norm.png", "terrain/ao.png", {0, -2, -57}, .1f}
 };
 
 struct SkyBoxModel {
@@ -2651,7 +2651,7 @@ private:
 		lastTime = time;
 					
 		const float ROT_SPEED = glm::radians(60.0f);
-		const float MOVE_SPEED = 0.75f;
+		const float MOVE_SPEED = 5.0f;
 		const float MOUSE_RES = 500.0f;
 		
 		static double old_xpos = 0, old_ypos = 0;
@@ -2721,7 +2721,7 @@ private:
 					
 		glm::mat4 Prj = glm::perspective(glm::radians(45.0f),
 						swapChainExtent.width / (float) swapChainExtent.height,
-						0.1f, 50.0f);
+						0.1f, 200.0f);
 		Prj[1][1] *= -1;
 
 		// Updates unifoms for the objects
