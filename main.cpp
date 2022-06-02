@@ -104,16 +104,10 @@ struct Model {
 	const float scale;
 };
 
-//const std::vector<Model> SceneToLoad = {
-//	{"TEXT.gltf", GLTF, "rustediron-streaks-alb.png", "rustediron-streaks-norm_hei.png",
-//	 "rustediron-streaks-met_rou_ao.png", {0,0.5,0}, 0.25},
-//	{"Primitives.obj", OBJ, "CustomUVChecker1K.png", "redbricks2b-norm_hei.png",
-//	 "redbricks2b-met_rou_ao.png", {0,1.0, -5.0}, 1.0},
-//	{"Primitives.gltf", GLTF, "CustomUVChecker1K.png", "redbricks2b-norm_hei.png",
-//	 "redbricks2b-met_rou_ao.png", {0,3.5, -5.0}, 1.0},
-//	{"LargePlane.obj", OBJ, "flat-cobble-moss-alb.png", "flat-cobble-moss-norm_hei.png",
-//	 "flat-cobble-moss-met_rou_ao.png", {0,0,0}, 1.0}
-//};
+
+#define MISSILE_SCENE_IDX 3
+#define TERRAIN_SCENE_IDX 4
+
 const std::vector<Model> SceneToLoad = {
 	{"TEXT.gltf", GLTF, "rustediron-streaks-alb.png", "rustediron-streaks-norm_hei.png",
 	 "rustediron-streaks-met_rou_ao.png", {0,1.0,0}, 0.5},
@@ -337,6 +331,7 @@ public:
     }
 
 private:
+#pragma region VULKAN_VAR
     GLFWwindow* window;
     VkInstance instance;
 	VkDebugUtilsMessengerEXT debugMessenger;
@@ -387,20 +382,28 @@ private:
 	// Scene graph (actually, here it is just a scene vector
 	std::vector<SceneModel> Scene;
 	SceneSkyBox SkyBox;
-	
+
+#pragma endregion VULKAN_VAR
+
 	// Camera
 	glm::vec3 CamAng = glm::vec3(0.0f);
 	glm::vec3 CamPos = glm::vec3(0.0f, 0.5f, 5.0f);
 
 	// Missile position
-	glm::vec3 Pos = glm::vec3(3, 0, 2);
 	glm::vec3 MissCamDeltaPos = glm::vec3(0.0f, 0.335f, -0.0f);
 	glm::vec3 FollowerDeltaTarget = glm::vec3(0.0f, 0.335f, 0.0f);
 	float followerDist = 0.8;
 	float lookYaw = 0.0;
 	float lookPitch = 0.0;
 	float lookRoll = 0.0;
+
+	bool isSimulationRunning = false;
+
+	glm::vec3 missileCurrentPostion;
+	glm::vec3 missileCurrentRotation;
 	
+#pragma region SETUP
+
     void initWindow() {
         glfwInit();
 
@@ -409,6 +412,7 @@ private:
         window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
         glfwSetWindowUserPointer(window, this);
         glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+
     }
 
 	static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
@@ -2567,7 +2571,9 @@ private:
 			}
 		}
 	}
-    
+	
+#pragma endregion SETUP
+
     void mainLoop() {
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
@@ -2651,74 +2657,41 @@ private:
     }
 
 //crea world matrix del missile
-	glm::mat4 getMissileWorldMatrix(GLFWwindow* window, glm::vec3 startpoint, glm::vec3 destination) {
-		static glm::vec3 pos = startpoint;
-		static glm::vec3 dir_punta = glm::vec3(0.0f, 1.0f, 0.0f);
-		static bool is_running = false;
-
-		
-
-		//gestione tempo dt
-		static auto startTime = std::chrono::high_resolution_clock::now();
-		static float lastTime = 0.0f;
-		auto currentTime = std::chrono::high_resolution_clock::now();
-		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-		float dt = time - lastTime;
-		lastTime = time;
-		//bool w = glfwGetKey(window, GLFW_KEY_W);
-		//bool a = glfwGetKey(window, GLFW_KEY_A);
-		bool s = glfwGetKey(window, GLFW_KEY_S);
-		//bool d = glfwGetKey(window, GLFW_KEY_D);
-		bool r = glfwGetKey(window, GLFW_KEY_R);
-		//bool f = glfwGetKey(window, GLFW_KEY_F);
+	glm::mat4 getMissileWorldMatrix(glm::vec3 startpoint, glm::vec3 destination, float dt) {
+		//static glm::vec3 missileCurrentPostion = startpoint;
+		//static glm::vec3 dir_punta = glm::vec3(0.0f, 1.0f, 0.0f);
 
 		//aggiornamento posizione e direzione
 		float move_speed = 0.5;
 		float yaw = 0.0f; //angolo di rotazione attorno asse y,  asse_x -> 0.0 radianti
 		float pitch = 0.0f;
-		//simulazione resettata
-		if (r && is_running) {
-			is_running = false;
-			pos = pos;
-		}
-		//simulazione iniziata
-		if (s) {
-			is_running = true;
-		}
+
 		//simulazione in esecuzione
-		if (is_running) {
-			dir_punta = glm::normalize(destination - pos);
-			yaw = atan2(destination[2] - pos[2], destination[0] - pos[0]);
+		//dir_punta = glm::normalize(destination - missileCurrentPostion);
+		yaw = atan2(destination[2] - missileCurrentPostion[2], destination[0] - missileCurrentPostion[0]);
 
-			//aggiornamento posizione
-			pos[0] += pos[0] * glm::cos(yaw) * move_speed;
-			pos[2] += pos[2] * glm::sin(yaw) * move_speed;
+		//aggiornamento posizione
+		missileCurrentPostion[0] += missileCurrentPostion[0] * glm::cos(yaw) * move_speed * dt;
+		missileCurrentPostion[2] += missileCurrentPostion[2] * glm::sin(yaw) * move_speed * dt;
 			
-			//distanza piano su piano xz
-			float actual_distance = sqrt(pow(pos[0] - startpoint[0], 2) + pow(startpoint[2] - destination[2], 2));
-			float total_distance = sqrt(pow(startpoint[0] - destination[0], 2) + pow(startpoint[2] - destination[2], 2));
+		//distanza piano su piano xz
+		float actual_distance = sqrt(pow(missileCurrentPostion[0] - startpoint[0], 2) + pow(startpoint[2] - destination[2], 2));
+		float total_distance = sqrt(pow(startpoint[0] - destination[0], 2) + pow(startpoint[2] - destination[2], 2));
 
-			//traiettoria parabola
-			//il sistema di riferimento è il piano della parabola e l'origine è nello startpoint->punto0, destination->punto1, punto arbitrario->punto2
-			glm::vec2 point0 = glm::vec2(0.0f);
-			glm::vec2 point1 = glm::vec2(total_distance, destination[1] - startpoint[1]);
-			glm::vec2 point2 = glm::vec2(total_distance / 2, 1.5 * std::max(point0[1], point1[1]));//terzo punto arbitrario per calcolare traiettoria parabolica
-			glm::vec3 parab_param = CalcParabolaParam(point0, point1, point2);
+		//traiettoria parabola
+		//il sistema di riferimento è il piano della parabola e l'origine è nello startpoint->punto0, destination->punto1, punto arbitrario->punto2
+		glm::vec2 point0 = glm::vec2(0.0f);
+		glm::vec2 point1 = glm::vec2(total_distance, destination[1] - startpoint[1]);
+		glm::vec2 point2 = glm::vec2(total_distance / 2, 1.5 * std::max(point0[1], point1[1]));//terzo punto arbitrario per calcolare traiettoria parabolica
+		glm::vec3 parab_param = CalcParabolaParam(point0, point1, point2);
 
-			pos[1] = startpoint[1] + parab_param[0] * pow(actual_distance, 2) + parab_param[1] * actual_distance + parab_param[2]; //calcolo y in cui si trova y = y_start + y_parabola
-			float derivata = 2 * parab_param[0] * actual_distance + parab_param[1]; //tangente per calcolare l'angolo rispetto al piano xz
-			pitch = atan(derivata);
-		}
-		if (pos == destination) {
-			//missile schiantato
-			is_running == false;
-			pos = startpoint;
-			dir_punta = glm::vec3(0.0f, 1.0f, 0.0f);
+		missileCurrentPostion[1] = startpoint[1] + parab_param[0] * pow(actual_distance, 2) + parab_param[1] * actual_distance + parab_param[2] * dt; //calcolo y in cui si trova y = y_start + y_parabola
+		float derivata = 2 * parab_param[0] * actual_distance + parab_param[1]; //tangente per calcolare l'angolo rispetto al piano xz
+		pitch = atan(derivata);
 
-		}
+		std::cout << "Pos: " << missileCurrentPostion[0] << " " << missileCurrentPostion[1] << " " << missileCurrentPostion[2] << "\n";
 
-
-		glm::mat4 out = glm::translate(glm::mat4(1.0), pos) *
+		glm::mat4 out = glm::translate(glm::mat4(1.0), missileCurrentPostion) *
 			glm::rotate(glm::mat4(1.0), yaw, glm::vec3(0, 1, 0)) *
 			glm::rotate(glm::mat4(1.0), pitch, glm::vec3(1, 0, 0));
 		return out;
@@ -2734,6 +2707,13 @@ private:
 		float C = (x2 * x3 * (x2 - x3) * y1 + x3 * x1 * (x3 - x1) * y2 + x1 * x2 * (x1 - x2) * y3) / denom;
 
 		return glm::vec3(A, B, C);
+	}
+
+	glm::mat4 getDefaultMissileWorldMatrix()
+	{
+		return glm::translate(glm::mat4(1.0), SceneToLoad[MISSILE_SCENE_IDX].pos)*
+			glm::rotate(glm::mat4(1.0), 0.0f, glm::vec3(0, 1, 0))*
+			glm::rotate(glm::mat4(1.0), 0.0f, glm::vec3(1, 0, 0));
 	}
 
 //crea LookAt matrix
@@ -2752,6 +2732,8 @@ private:
 		static auto startTime = std::chrono::high_resolution_clock::now();
 		static float lastTime = 0.0f;
 		
+		static float spaceToggleTimer = 0.0f;
+
 		auto currentTime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration<float, std::chrono::seconds::period>
 					(currentTime - startTime).count();
@@ -2769,6 +2751,9 @@ private:
 		double m_dy = ypos - old_ypos;
 		old_xpos = xpos; old_ypos = ypos;
 //std::cout << xpos << " " << ypos << " " << m_dx << " " << m_dy << "\n";
+
+
+		spaceToggleTimer = spaceToggleTimer > 0 ? spaceToggleTimer - deltaT : 0; //this timer is used to block multiplte inputs on spacebar
 
 		glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
 		if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
@@ -2823,11 +2808,40 @@ private:
 			CamPos += MOVE_SPEED * glm::vec3(0,1,0) * deltaT;
 		}
 
+		if (glfwGetKey(window, GLFW_KEY_SPACE) && spaceToggleTimer == 0.0f)
+		{
+			// reset current position before starting 
+			if (!isSimulationRunning) {
+				missileCurrentPostion = SceneToLoad[MISSILE_SCENE_IDX].pos;
+				std::cout << "Missile current position reseted\n";
+			}
+
+			spaceToggleTimer += .5f; // delay until next input
+			isSimulationRunning = !isSimulationRunning;
+			std::cout << "Simulation " << (isSimulationRunning ? "started" : "reset") << "\n";
+		}
+
+
+		// compute missile simulation
+		glm::vec3 destination = glm::vec3(10.0f, 3.0f, -8.0f);
+		glm::mat4 missWorldMat;
+
+
+		if (isSimulationRunning)
+			missWorldMat = getMissileWorldMatrix(SceneToLoad[MISSILE_SCENE_IDX].pos, destination, deltaT); // calculate moving position
+		else
+			missWorldMat = getDefaultMissileWorldMatrix(); // reset position
+
+		// TODO: trovare pt collisione
+		if (isSimulationRunning && glm::distance(missileCurrentPostion,destination) < 0.1f)
+		{
+			isSimulationRunning = false;
+			std::cout << "Simulation ended\n";
+		}
+
+
 // std::cout << "Cam Pos: " << CamPos[0] << " " << CamPos[1] << " " << CamPos[2] << "\n";
 		//variabili provvisorie
-		glm::vec3 startpoint = glm::vec3(0.0f, 1.0f, -3.0f);
-		glm::vec3 destination = glm::vec3(10.0f, 3.0f, -8.0f);
-		glm::mat4 missWorldMat = getMissileWorldMatrix(window, startpoint, destination);
 
 		glm::mat4 CamMat = glm::translate(glm::transpose(glm::mat4(CamDir)), -CamPos);
 					
@@ -2840,12 +2854,19 @@ private:
 		for(int j = 0; j < Scene.size(); j++) {
 			UniformBufferObject ubo{};
 			
-			float rotAng = (j == 0) ? glm::radians(30.0f) * cos(time/2) : 0.0f;
+			if (j == MISSILE_SCENE_IDX) 
+			{
+				ubo.mMat = missWorldMat;
+			}
+			else 
+			{
+				// sto schifo fa roteare il coso
+				float rotAng = (j == 0) ? glm::radians(30.0f) * cos(time / 2) : 0.0f;
+				ubo.mMat = glm::mat4(1.0f);
+				ubo.mMat = glm::translate(ubo.mMat, SceneToLoad[j].pos);
+				ubo.mMat = glm::rotate(ubo.mMat, rotAng, glm::vec3(0.0f, 1.0f, 0.0f));	
+			}
 
-			ubo.mMat = glm::mat4(1.0f);
-			ubo.mMat = glm::translate(ubo.mMat, SceneToLoad[j].pos);
-			ubo.mMat = glm::rotate(ubo.mMat, rotAng,
-									glm::vec3(0.0f, 1.0f, 0.0f));
 			ubo.mMat = glm::scale(ubo.mMat, glm::vec3(SceneToLoad[j].scale));
 
 			ubo.mvpMat = Prj * CamMat * ubo.mMat;
@@ -2918,6 +2939,8 @@ private:
 		createDescriptorSets();
 		createCommandBuffers();
 	}
+
+#pragma region CLEANUP
 
 	void cleanupSwapChain() {
     	vkDestroyImageView(device, colorImageView, nullptr);
@@ -3028,12 +3051,7 @@ private:
     }
 
 
-
-
-
-
-
-//// To put in the right place
+#pragma endregion CLEANUP
 
 };
 
