@@ -391,6 +391,15 @@ private:
 	// Camera
 	glm::vec3 CamAng = glm::vec3(0.0f);
 	glm::vec3 CamPos = glm::vec3(0.0f, 0.5f, 5.0f);
+
+	// Missile position
+	glm::vec3 Pos = glm::vec3(3, 0, 2);
+	glm::vec3 MissCamDeltaPos = glm::vec3(0.0f, 0.335f, -0.0f);
+	glm::vec3 FollowerDeltaTarget = glm::vec3(0.0f, 0.335f, 0.0f);
+	float followerDist = 0.8;
+	float lookYaw = 0.0;
+	float lookPitch = 0.0;
+	float lookRoll = 0.0;
 	
     void initWindow() {
         glfwInit();
@@ -2641,7 +2650,7 @@ private:
 		currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
 
-//funzione che trasla e ruota missile
+//crea world matrix del missile
 	glm::mat4 getMissileWorldMatrix(GLFWwindow* window, glm::vec3 startpoint, glm::vec3 destination) {
 		static glm::vec3 pos = startpoint;
 		static glm::vec3 dir_punta = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -2715,7 +2724,7 @@ private:
 		return out;
 	}
 
-	//ritorna dati 3 punti i parametri A,B,C dell'eq y = Ax^2 + Bx + C
+//ritorna dati 3 punti i parametri A,B,C dell'eq y = Ax^2 + Bx + C
 	glm::vec3 CalcParabolaParam(glm::vec2 p0, glm::vec2 p1, glm::vec2 p2)
 	{
 		float x1 = p0[0], x2 = p1[0], x3 = p2[0], y1 = p0[1], y2 = p1[1], y3 = p2[1];
@@ -2725,6 +2734,18 @@ private:
 		float C = (x2 * x3 * (x2 - x3) * y1 + x3 * x1 * (x3 - x1) * y2 + x1 * x2 * (x1 - x2) * y3) / denom;
 
 		return glm::vec3(A, B, C);
+	}
+
+//crea LookAt matrix
+	glm::mat4 LookAtMat(glm::vec3 Pos, glm::vec3 aim, float Roll) {
+		glm::vec3 u = glm::vec3(0, 1, 0);
+		glm::vec3 vz = glm::normalize(Pos - aim);
+		glm::vec3 vx = glm::normalize(glm::cross(u, vz));
+		glm::vec3 vy = glm::cross(vz, vx);
+		glm::mat4 mc = glm::mat4(glm::vec4(vx, 0), glm::vec4(vy, 0), glm::vec4(vz, 0), glm::vec4(Pos, 1));
+		glm::mat4 rz = glm::rotate(glm::mat4(1.0), -Roll, glm::vec3(0, 0, 1));
+		glm::mat4 out = rz * glm::inverse(mc); //inv(mc) = mv
+		return out;
 	}
 
 	void updateUniformBuffer(uint32_t currentImage) {
@@ -2803,6 +2824,10 @@ private:
 		}
 
 // std::cout << "Cam Pos: " << CamPos[0] << " " << CamPos[1] << " " << CamPos[2] << "\n";
+		//variabili provvisorie
+		glm::vec3 startpoint = glm::vec3(0.0f, 1.0f, -3.0f);
+		glm::vec3 destination = glm::vec3(10.0f, 3.0f, -8.0f);
+		glm::mat4 missWorldMat = getMissileWorldMatrix(window, startpoint, destination);
 
 		glm::mat4 CamMat = glm::translate(glm::transpose(glm::mat4(CamDir)), -CamPos);
 					
