@@ -31,6 +31,7 @@ il cubo dello SkyBox
 #include <array>
 #include <unordered_map>
 
+
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -2639,6 +2640,92 @@ private:
 		
 		currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
+
+//funzione che trasla e ruota missile
+	glm::mat4 getMissileWorldMatrix(GLFWwindow* window, glm::vec3 startpoint, glm::vec3 destination) {
+		static glm::vec3 pos = startpoint;
+		static glm::vec3 dir_punta = glm::vec3(0.0f, 1.0f, 0.0f);
+		static bool is_running = false;
+
+		
+
+		//gestione tempo dt
+		static auto startTime = std::chrono::high_resolution_clock::now();
+		static float lastTime = 0.0f;
+		auto currentTime = std::chrono::high_resolution_clock::now();
+		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+		float dt = time - lastTime;
+		lastTime = time;
+		//bool w = glfwGetKey(window, GLFW_KEY_W);
+		//bool a = glfwGetKey(window, GLFW_KEY_A);
+		bool s = glfwGetKey(window, GLFW_KEY_S);
+		//bool d = glfwGetKey(window, GLFW_KEY_D);
+		bool r = glfwGetKey(window, GLFW_KEY_R);
+		//bool f = glfwGetKey(window, GLFW_KEY_F);
+
+		//aggiornamento posizione e direzione
+		float move_speed = 0.5;
+		float yaw = 0.0f; //angolo di rotazione attorno asse y,  asse_x -> 0.0 radianti
+		float pitch = 0.0f;
+		//simulazione resettata
+		if (r && is_running) {
+			is_running = false;
+			pos = pos;
+		}
+		//simulazione iniziata
+		if (s) {
+			is_running = true;
+		}
+		//simulazione in esecuzione
+		if (is_running) {
+			dir_punta = glm::normalize(destination - pos);
+			yaw = atan2(destination[2] - pos[2], destination[0] - pos[0]);
+
+			//aggiornamento posizione
+			pos[0] += pos[0] * glm::cos(yaw) * move_speed;
+			pos[2] += pos[2] * glm::sin(yaw) * move_speed;
+			
+			//distanza piano su piano xz
+			float actual_distance = sqrt(pow(pos[0] - startpoint[0], 2) + pow(startpoint[2] - destination[2], 2));
+			float total_distance = sqrt(pow(startpoint[0] - destination[0], 2) + pow(startpoint[2] - destination[2], 2));
+
+			//traiettoria parabola
+			//il sistema di riferimento è il piano della parabola e l'origine è nello startpoint->punto0, destination->punto1, punto arbitrario->punto2
+			glm::vec2 point0 = glm::vec2(0.0f);
+			glm::vec2 point1 = glm::vec2(total_distance, destination[1] - startpoint[1]);
+			glm::vec2 point2 = glm::vec2(total_distance / 2, 1.5 * std::max(point0[1], point1[1]));//terzo punto arbitrario per calcolare traiettoria parabolica
+			glm::vec3 parab_param = CalcParabolaParam(point0, point1, point2);
+
+			pos[1] = startpoint[1] + parab_param[0] * pow(actual_distance, 2) + parab_param[1] * actual_distance + parab_param[2]; //calcolo y in cui si trova y = y_start + y_parabola
+			float derivata = 2 * parab_param[0] * actual_distance + parab_param[1]; //tangente per calcolare l'angolo rispetto al piano xz
+			pitch = atan(derivata);
+		}
+		if (pos == destination) {
+			//missile schiantato
+			is_running == false;
+			pos = startpoint;
+			dir_punta = glm::vec3(0.0f, 1.0f, 0.0f);
+
+		}
+
+
+		glm::mat4 out = glm::translate(glm::mat4(1.0), pos) *
+			glm::rotate(glm::mat4(1.0), yaw, glm::vec3(0, 1, 0)) *
+			glm::rotate(glm::mat4(1.0), pitch, glm::vec3(1, 0, 0));
+		return out;
+	}
+
+	//ritorna dati 3 punti i parametri A,B,C dell'eq y = Ax^2 + Bx + C
+	glm::vec3 CalcParabolaParam(glm::vec2 p0, glm::vec2 p1, glm::vec2 p2)
+	{
+		float x1 = p0[0], x2 = p1[0], x3 = p2[0], y1 = p0[1], y2 = p1[1], y3 = p2[1];
+		float denom = (x1 - x2) * (x1 - x3) * (x2 - x3);
+		float A = (x3 * (y2 - y1) + x2 * (y1 - y3) + x1 * (y3 - y2)) / denom;
+		float B = (x3 * x3 * (y1 - y2) + x2 * x2 * (y3 - y1) + x1 * x1 * (y2 - y3)) / denom;
+		float C = (x2 * x3 * (x2 - x3) * y1 + x3 * x1 * (x3 - x1) * y2 + x1 * x2 * (x1 - x2) * y3) / denom;
+
+		return glm::vec3(A, B, C);
+	}
 
 	void updateUniformBuffer(uint32_t currentImage) {
 		static auto startTime = std::chrono::high_resolution_clock::now();
