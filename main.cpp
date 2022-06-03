@@ -2662,34 +2662,36 @@ private:
 		//static glm::vec3 dir_punta = glm::vec3(0.0f, 1.0f, 0.0f);
 
 		//aggiornamento posizione e direzione
-		float move_speed = 0.5;
+		float move_speed = 0.6;
 		float yaw = 0.0f; //angolo di rotazione attorno asse y,  asse_x -> 0.0 radianti
 		float pitch = 0.0f;
 
 		//simulazione in esecuzione
 		//dir_punta = glm::normalize(destination - missileCurrentPostion);
-		yaw = atan2(destination[2] - missileCurrentPostion[2], destination[0] - missileCurrentPostion[0]);
-
+		yaw = atan2(destination[2] - startpoint[2], destination[0] - startpoint[0]);
+		std::cout << "Yaw (deg): " << 180*yaw/3.14 << std::endl;
 		//aggiornamento posizione
-		missileCurrentPostion[0] += missileCurrentPostion[0] * glm::cos(yaw) * move_speed * dt;
-		missileCurrentPostion[2] += missileCurrentPostion[2] * glm::sin(yaw) * move_speed * dt;
+		missileCurrentPostion[0] +=  glm::cos(yaw) * move_speed * dt;
+		missileCurrentPostion[2] +=  glm::sin(yaw) * move_speed * dt;
 			
 		//distanza piano su piano xz
-		float actual_distance = sqrt(pow(missileCurrentPostion[0] - startpoint[0], 2) + pow(startpoint[2] - destination[2], 2));
+		float actual_distance = sqrt(pow(missileCurrentPostion[0] - startpoint[0], 2) + pow(missileCurrentPostion[2] - startpoint[2], 2));
 		float total_distance = sqrt(pow(startpoint[0] - destination[0], 2) + pow(startpoint[2] - destination[2], 2));
 
 		//traiettoria parabola
 		//il sistema di riferimento è il piano della parabola e l'origine è nello startpoint->punto0, destination->punto1, punto arbitrario->punto2
 		glm::vec2 point0 = glm::vec2(0.0f);
 		glm::vec2 point1 = glm::vec2(total_distance, destination[1] - startpoint[1]);
-		glm::vec2 point2 = glm::vec2(total_distance / 2, 1.5 * std::max(point0[1], point1[1]));//terzo punto arbitrario per calcolare traiettoria parabolica
+		glm::vec2 point2 = glm::vec2(total_distance / 2, 1.5 + 1.5*abs(point0[1] - point1[1]) + std::max(point0[1], point1[1]));//terzo punto arbitrario per calcolare traiettoria parabolica
 		glm::vec3 parab_param = CalcParabolaParam(point0, point1, point2);
 
-		missileCurrentPostion[1] = startpoint[1] + parab_param[0] * pow(actual_distance, 2) + parab_param[1] * actual_distance + parab_param[2] * dt; //calcolo y in cui si trova y = y_start + y_parabola
+		missileCurrentPostion[1] = startpoint[1] + parab_param[0] * pow(actual_distance, 2) + parab_param[1] * actual_distance + parab_param[2]; //calcolo y in cui si trova y = y_start + y_parabola
 		float derivata = 2 * parab_param[0] * actual_distance + parab_param[1]; //tangente per calcolare l'angolo rispetto al piano xz
-		pitch = atan(derivata);
+		pitch = atan(derivata) -glm::radians(90.0f); //offset di 90deg perchè il missile inizialmente parte verticale
+		yaw += glm::radians(180.0f); //offset 30deg TODO: fix angles
 
-		std::cout << "Pos: " << missileCurrentPostion[0] << " " << missileCurrentPostion[1] << " " << missileCurrentPostion[2] << "\n";
+		std::cout << "Pitch (deg): " << 180*pitch/3.14 << std::endl;
+ 		std::cout << "Pos: " << missileCurrentPostion[0] << " " << missileCurrentPostion[1] << " " << missileCurrentPostion[2] << "\n";
 
 		glm::mat4 out = glm::translate(glm::mat4(1.0), missileCurrentPostion) *
 			glm::rotate(glm::mat4(1.0), yaw, glm::vec3(0, 1, 0)) *
@@ -2813,7 +2815,7 @@ private:
 			// reset current position before starting 
 			if (!isSimulationRunning) {
 				missileCurrentPostion = SceneToLoad[MISSILE_SCENE_IDX].pos;
-				std::cout << "Missile current position reseted\n";
+				std::cout << "Missile current position resetted\n";
 			}
 
 			spaceToggleTimer += .5f; // delay until next input
@@ -2823,7 +2825,7 @@ private:
 
 
 		// compute missile simulation
-		glm::vec3 destination = glm::vec3(10.0f, 3.0f, -8.0f);
+		glm::vec3 destination = glm::vec3(15.0f, 3.0f, -23.0f);
 		glm::mat4 missWorldMat;
 
 
