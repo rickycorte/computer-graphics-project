@@ -2662,7 +2662,7 @@ private:
 		//static glm::vec3 dir_punta = glm::vec3(0.0f, 1.0f, 0.0f);
 
 		//aggiornamento posizione e direzione
-		float move_speed = 0.6;
+		float move_speed = 0.7;
 		float yaw = 0.0f; //angolo di rotazione attorno asse y,  asse_x -> 0.0 radianti
 		float pitch = 0.0f;
 
@@ -2682,19 +2682,19 @@ private:
 		//il sistema di riferimento è il piano della parabola e l'origine è nello startpoint->punto0, destination->punto1, punto arbitrario->punto2
 		glm::vec2 point0 = glm::vec2(0.0f);
 		glm::vec2 point1 = glm::vec2(total_distance, destination[1] - startpoint[1]);
-		glm::vec2 point2 = glm::vec2(total_distance / 2, 1.5 + 1.5*abs(point0[1] - point1[1]) + std::max(point0[1], point1[1]));//terzo punto arbitrario per calcolare traiettoria parabolica
+		glm::vec2 point2 = glm::vec2(total_distance / 2, 1.5 + std::max(point0[1], point1[1]));//terzo punto arbitrario per calcolare traiettoria parabolica
 		glm::vec3 parab_param = CalcParabolaParam(point0, point1, point2);
 
 		missileCurrentPostion[1] = startpoint[1] + parab_param[0] * pow(actual_distance, 2) + parab_param[1] * actual_distance + parab_param[2]; //calcolo y in cui si trova y = y_start + y_parabola
 		float derivata = 2 * parab_param[0] * actual_distance + parab_param[1]; //tangente per calcolare l'angolo rispetto al piano xz
-		pitch = atan(derivata) -glm::radians(90.0f); //offset di 90deg perchè il missile inizialmente parte verticale
-		yaw += glm::radians(180.0f); //offset 30deg TODO: fix angles
+		pitch = atan(derivata) - glm::radians(90.0f); //offset di 90deg perchè il missile inizialmente parte verticale, se pitch=90 e yaw=0 il missile è diretto verso asse z+
+		yaw = glm::radians(-90.0f) - yaw; //si passa da ssitema di riferimento xz (orario) a rotazione di yaw crescente anti-oraria 
 
 		std::cout << "Pitch (deg): " << 180*pitch/3.14 << std::endl;
  		std::cout << "Pos: " << missileCurrentPostion[0] << " " << missileCurrentPostion[1] << " " << missileCurrentPostion[2] << "\n";
 
 		glm::mat4 out = glm::translate(glm::mat4(1.0), missileCurrentPostion) *
-			glm::rotate(glm::mat4(1.0), yaw, glm::vec3(0, 1, 0)) *
+			glm::rotate(glm::mat4(1.0), yaw , glm::vec3(0, 1, 0)) *
 			glm::rotate(glm::mat4(1.0), pitch, glm::vec3(1, 0, 0));
 		return out;
 	}
@@ -2825,7 +2825,7 @@ private:
 
 
 		// compute missile simulation
-		glm::vec3 destination = glm::vec3(15.0f, 3.0f, -23.0f);
+		glm::vec3 destination = glm::vec3(-10.0f, 3.0f, -15.0f);
 		glm::mat4 missWorldMat;
 
 
