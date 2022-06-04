@@ -114,7 +114,7 @@ const std::vector<Model> SceneToLoad = {
 	{"Primitives.gltf", GLTF, "redbricks2b-alb.png", "redbricks2b-norm_hei.png",
 	 "redbricks2b-met_rou_ao.png", {0,0.5, -4.0}, 0.5},
 	//{"LargePlane.obj", OBJ, "flat-cobble-moss-alb.png", "flat-cobble-moss-norm_hei.png", "flat-cobble-moss-met_rou_ao.png", {0,0,0}, 1.0},
-	{"rocket.obj", OBJ, "rocket/rocket2_body_BaseColor.png", "rocket/rocket2_body_Normal.png", "rocket/rocket2_body_Metallic.png", {4,0.5f,4}, 1.0},
+	{"rocket.obj", OBJ, "rocket/rocket2_body_BaseColor.png", "rocket/rocket2_body_Normal.png", "rocket/rocket2_body_Metallic.png", {75,0.5f,4}, 1.0},
 	{"blue_missile.obj", OBJ, "blue_missile/missile_diffuse.jpg", "blue_missile/missile_normal.jpg", "blue_missile/missile_ao.jpg", {4,0,6}, .02f},
 	{"terrain.obj", OBJ, "terrain/diff.png", "terrain/norm.png", "terrain/ao.png", {0, -2, -57}, .1f}
 };
@@ -401,6 +401,10 @@ private:
 
 	glm::vec3 missileCurrentPostion;
 	glm::vec3 missileCurrentRotation;
+
+	glm::vec3 missileDestination = glm::vec3(-10.0f, 0.0f, -15.0f);
+	float missileSpeed = 5.0f;
+	float missileTopHeight = 10.0f;
 	
 #pragma region SETUP
 
@@ -2662,7 +2666,6 @@ private:
 		//static glm::vec3 dir_punta = glm::vec3(0.0f, 1.0f, 0.0f);
 
 		//aggiornamento posizione e direzione
-		float move_speed = 0.7;
 		float yaw = 0.0f; //angolo di rotazione attorno asse y,  asse_x -> 0.0 radianti
 		float pitch = 0.0f;
 
@@ -2671,8 +2674,8 @@ private:
 		yaw = atan2(destination[2] - startpoint[2], destination[0] - startpoint[0]);
 		std::cout << "Yaw (deg): " << 180*yaw/3.14 << std::endl;
 		//aggiornamento posizione
-		missileCurrentPostion[0] +=  glm::cos(yaw) * move_speed * dt;
-		missileCurrentPostion[2] +=  glm::sin(yaw) * move_speed * dt;
+		missileCurrentPostion[0] +=  glm::cos(yaw) * missileSpeed * dt;
+		missileCurrentPostion[2] +=  glm::sin(yaw) * missileSpeed * dt;
 			
 		//distanza piano su piano xz
 		float actual_distance = sqrt(pow(missileCurrentPostion[0] - startpoint[0], 2) + pow(missileCurrentPostion[2] - startpoint[2], 2));
@@ -2682,7 +2685,7 @@ private:
 		//il sistema di riferimento è il piano della parabola e l'origine è nello startpoint->punto0, destination->punto1, punto arbitrario->punto2
 		glm::vec2 point0 = glm::vec2(0.0f);
 		glm::vec2 point1 = glm::vec2(total_distance, destination[1] - startpoint[1]);
-		glm::vec2 point2 = glm::vec2(total_distance / 2, 1.5 + std::max(point0[1], point1[1]));//terzo punto arbitrario per calcolare traiettoria parabolica
+		glm::vec2 point2 = glm::vec2(total_distance / 2, missileTopHeight + std::max(point0[1], point1[1]));//terzo punto arbitrario per calcolare traiettoria parabolica
 		glm::vec3 parab_param = CalcParabolaParam(point0, point1, point2);
 
 		missileCurrentPostion[1] = startpoint[1] + parab_param[0] * pow(actual_distance, 2) + parab_param[1] * actual_distance + parab_param[2]; //calcolo y in cui si trova y = y_start + y_parabola
@@ -2728,6 +2731,29 @@ private:
 		glm::mat4 rz = glm::rotate(glm::mat4(1.0), -Roll, glm::vec3(0, 0, 1));
 		glm::mat4 out = rz * glm::inverse(mc); //inv(mc) = mv
 		return out;
+	}
+	
+	float getTerrainHeigh(glm::vec3 position)
+	{
+		auto terrainBaseData = SceneToLoad[TERRAIN_SCENE_IDX];
+		auto relativePostion = position - terrainBaseData.pos;
+		float bestDistance = 1000000000;
+		float h;
+
+		for (auto vertex : Scene[TERRAIN_SCENE_IDX].MD.vertices)
+		{
+			auto relativeVertex = vertex.pos * terrainBaseData.scale;
+			relativeVertex.y = 0;
+
+			auto distance = glm::distance(relativeVertex, relativePostion);
+			if (distance < bestDistance) {
+				bestDistance = distance;
+				h = vertex.pos.y * terrainBaseData.scale;
+			}
+			if (distance < 0.1f) break;
+			
+		}
+		return h;
 	}
 
 	void updateUniformBuffer(uint32_t currentImage) {
@@ -2810,6 +2836,10 @@ private:
 			CamPos += MOVE_SPEED * glm::vec3(0,1,0) * deltaT;
 		}
 
+
+		// compute missile simulation
+		glm::mat4 missWorldMat;
+
 		if (glfwGetKey(window, GLFW_KEY_SPACE) && spaceToggleTimer == 0.0f)
 		{
 			// reset current position before starting 
@@ -2821,21 +2851,23 @@ private:
 			spaceToggleTimer += .5f; // delay until next input
 			isSimulationRunning = !isSimulationRunning;
 			std::cout << "Simulation " << (isSimulationRunning ? "started" : "reset") << "\n";
+			
+			// on start calculate the destination height
+			if (isSimulationRunning) 
+			{
+				missileDestination.y = getTerrainHeigh(missileDestination) - 1.0f; // remove a little to have the missile pass a bit the terrain
+				std::cout << "Computed destination height: " << missileDestination.y << "\n";
+			}
 		}
 
 
-		// compute missile simulation
-		glm::vec3 destination = glm::vec3(-10.0f, 3.0f, -15.0f);
-		glm::mat4 missWorldMat;
-
-
 		if (isSimulationRunning)
-			missWorldMat = getMissileWorldMatrix(SceneToLoad[MISSILE_SCENE_IDX].pos, destination, deltaT); // calculate moving position
+			missWorldMat = getMissileWorldMatrix(SceneToLoad[MISSILE_SCENE_IDX].pos, missileDestination, deltaT); // calculate moving position
 		else
 			missWorldMat = getDefaultMissileWorldMatrix(); // reset position
 
 		// TODO: trovare pt collisione
-		if (isSimulationRunning && glm::distance(missileCurrentPostion,destination) < 0.1f)
+		if (isSimulationRunning && glm::distance(missileCurrentPostion,missileDestination) < 0.1f)
 		{
 			isSimulationRunning = false;
 			std::cout << "Simulation ended\n";
