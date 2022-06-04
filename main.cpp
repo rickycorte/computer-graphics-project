@@ -1,16 +1,5 @@
 /*************
 
-Sono arrivato a caricare la mesh del cubo dello SkyBox.
-Ora bisogna:
-- Creare un nuovo set di shader e caricarlo
-- Creare un nuovo layout per questi shader
-- Creare una nuova pipeline con questi shader e questo layout
-- Creare un nuovo render-pass (o meglio un sub-pass) con questa pipeline
-- Aggiungere i comandi in fondo alla rendere queue per cambiare pipeline e renderizzare
-il cubo dello SkyBox
-- Capire come caricare la Cube Map
-- Modificare gli shader in modo da usare la CubeMap
-
 *************/
 
 
@@ -105,15 +94,10 @@ struct Model {
 };
 
 
-#define MISSILE_SCENE_IDX 3
-#define TERRAIN_SCENE_IDX 4
+#define MISSILE_SCENE_IDX 1
+#define TERRAIN_SCENE_IDX 2
 
 const std::vector<Model> SceneToLoad = {
-	{"TEXT.gltf", GLTF, "rustediron-streaks-alb.png", "rustediron-streaks-norm_hei.png",
-	 "rustediron-streaks-met_rou_ao.png", {0,1.0,0}, 0.5},
-	{"Primitives.gltf", GLTF, "redbricks2b-alb.png", "redbricks2b-norm_hei.png",
-	 "redbricks2b-met_rou_ao.png", {0,0.5, -4.0}, 0.5},
-	//{"LargePlane.obj", OBJ, "flat-cobble-moss-alb.png", "flat-cobble-moss-norm_hei.png", "flat-cobble-moss-met_rou_ao.png", {0,0,0}, 1.0},
 	{"rocket.obj", OBJ, "rocket/rocket2_body_BaseColor.png", "rocket/rocket2_body_Normal.png", "rocket/rocket2_body_Metallic.png", {75,0.5f,4}, 1.0},
 	{"blue_missile.obj", OBJ, "blue_missile/missile_diffuse.jpg", "blue_missile/missile_normal.jpg", "blue_missile/missile_ao.jpg", {4,0,6}, .02f},
 	{"terrain.obj", OBJ, "terrain/diff.png", "terrain/norm.png", "terrain/ao.png", {0, -2, -57}, .1f}
@@ -2887,29 +2871,19 @@ private:
 		// Updates unifoms for the objects
 		for(int j = 0; j < Scene.size(); j++) {
 			UniformBufferObject ubo{};
+
+			ubo.mMat = glm::translate(glm::mat4(1.0f), SceneToLoad[j].pos);
 			
+			//override world matrix for missile
 			if (j == MISSILE_SCENE_IDX) 
 			{
 				ubo.mMat = missWorldMat;
-			}
-			else 
-			{
-				// sto schifo fa roteare il coso
-				float rotAng = (j == 0) ? glm::radians(30.0f) * cos(time / 2) : 0.0f;
-				ubo.mMat = glm::mat4(1.0f);
-				ubo.mMat = glm::translate(ubo.mMat, SceneToLoad[j].pos);
-				ubo.mMat = glm::rotate(ubo.mMat, rotAng, glm::vec3(0.0f, 1.0f, 0.0f));	
 			}
 
 			ubo.mMat = glm::scale(ubo.mMat, glm::vec3(SceneToLoad[j].scale));
 
 			ubo.mvpMat = Prj * CamMat * ubo.mMat;
 			ubo.nMat = glm::inverse(glm::transpose(ubo.mMat));
-//			ubo.nMat = glm::inverse(glm::transpose(glm::mat3(ubo.mMat)));
-//
-//for(int ti=0;ti<3;ti++){for(int tj=0;tj<3;tj++){std::cout << ubo.nMat[ti][tj] << " ";}std::cout<<"\n";}std::cout<<"\n";
-//glm::mat4 tM = glm::inverse(glm::transpose(ubo.mMat));
-//for(int ti=0;ti<4;ti++){for(int tj=0;tj<4;tj++){std::cout << tM[ti][tj] << " ";}std::cout<<"\n";}std::cout<<"\n";
 
 
 			int i = j * swapChainImages.size() + currentImage;
