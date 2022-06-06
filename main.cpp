@@ -28,6 +28,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 
 #include <chrono>
 
@@ -370,8 +371,10 @@ private:
 #pragma endregion VULKAN_VAR
 
 	// Camera
-	glm::vec3 CamAng = glm::vec3(0.0f);
+	glm::vec3 CamAng = glm::vec3(1, 0, 0);
 	glm::vec3 CamPos = glm::vec3(0.0f, 0.5f, 5.0f);
+
+	float tpcRadius = 10.0f;
 
 	// Missile position
 	glm::vec3 MissCamDeltaPos = glm::vec3(0.0f, 0.335f, -0.0f);
@@ -2705,17 +2708,6 @@ private:
 			glm::rotate(glm::mat4(1.0), 0.0f, glm::vec3(1, 0, 0));
 	}
 
-//crea LookAt matrix
-	glm::mat4 LookAtMat(glm::vec3 Pos, glm::vec3 aim, float Roll) {
-		glm::vec3 u = glm::vec3(0, 1, 0);
-		glm::vec3 vz = glm::normalize(Pos - aim);
-		glm::vec3 vx = glm::normalize(glm::cross(u, vz));
-		glm::vec3 vy = glm::cross(vz, vx);
-		glm::mat4 mc = glm::mat4(glm::vec4(vx, 0), glm::vec4(vy, 0), glm::vec4(vz, 0), glm::vec4(Pos, 1));
-		glm::mat4 rz = glm::rotate(glm::mat4(1.0), -Roll, glm::vec3(0, 0, 1));
-		glm::mat4 out = rz * glm::inverse(mc); //inv(mc) = mv
-		return out;
-	}
 	
 	float getTerrainHeigh(glm::vec3 position)
 	{
@@ -2780,22 +2772,19 @@ private:
 			CamAng.y -= deltaT * ROT_SPEED;
 		}
 		if(glfwGetKey(window, GLFW_KEY_UP)) {
-			CamAng.x += deltaT * ROT_SPEED;
-		}
-		if(glfwGetKey(window, GLFW_KEY_DOWN)) {
 			CamAng.x -= deltaT * ROT_SPEED;
 		}
+		if(glfwGetKey(window, GLFW_KEY_DOWN)) {
+			CamAng.x += deltaT * ROT_SPEED;
+		}
+		/*
 		if(glfwGetKey(window, GLFW_KEY_Q)) {
 			CamAng.z -= deltaT * ROT_SPEED;
 		}
 		if(glfwGetKey(window, GLFW_KEY_E)) {
 			CamAng.z += deltaT * ROT_SPEED;
 		}
-		
-		glm::mat3 CamDir = glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
-						   glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f))) *
-						   glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.z, glm::vec3(0.0f, 0.0f, 1.0f)));
-		
+				
 		
 		if(glfwGetKey(window, GLFW_KEY_A)) {
 			CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
@@ -2819,7 +2808,7 @@ private:
 		if(glfwGetKey(window, GLFW_KEY_R)) {
 			CamPos += MOVE_SPEED * glm::vec3(0,1,0) * deltaT;
 		}
-
+		*/
 
 		// compute missile simulation
 		glm::mat4 missWorldMat;
@@ -2839,16 +2828,21 @@ private:
 			// on start calculate the destination height
 			if (isSimulationRunning) 
 			{
-				missileDestination.y = getTerrainHeigh(missileDestination) - 1.0f; // remove a little to have the missile pass a bit the terrain
+				missileDestination.y = getTerrainHeigh(missileDestination); // remove a little to have the missile pass a bit the terrain
 				std::cout << "Computed destination height: " << missileDestination.y << "\n";
 			}
 		}
 
 
 		if (isSimulationRunning)
+		{
 			missWorldMat = getMissileWorldMatrix(SceneToLoad[MISSILE_SCENE_IDX].pos, missileDestination, deltaT); // calculate moving position
+		}
 		else
+		{
 			missWorldMat = getDefaultMissileWorldMatrix(); // reset position
+			missileCurrentPostion = SceneToLoad[MISSILE_SCENE_IDX].pos;
+		}
 
 		// TODO: trovare pt collisione
 		if (isSimulationRunning && glm::distance(missileCurrentPostion,missileDestination) < 0.1f)
@@ -2861,7 +2855,21 @@ private:
 // std::cout << "Cam Pos: " << CamPos[0] << " " << CamPos[1] << " " << CamPos[2] << "\n";
 		//variabili provvisorie
 
-		glm::mat4 CamMat = glm::translate(glm::transpose(glm::mat4(CamDir)), -CamPos);
+		//glm::mat4 CamMat = glm::translate(glm::transpose(glm::mat4(CamDir)), -CamPos); // ruota di camDir -> trasla
+
+		glm::vec3 aroundRotation = tpcRadius * glm::vec3(glm::cos(CamAng.y) * glm::sin(CamAng.x), glm::cos(CamAng.x), glm::sin(CamAng.y) * glm::sin(CamAng.x));
+
+		glm::mat4 CamMat = glm::lookAt(
+			missileCurrentPostion + aroundRotation,
+			missileCurrentPostion + glm::vec3(0, 1, 0), // missle center is at bottom so we need to offset it a bit
+			glm::vec3(0,1,0) // up
+		);
+
+
+		glm::mat3 CamDir = glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.y , glm::vec3(0.0f, 1.0f, 0.0f))) *
+			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f)));
+		    // * glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.z, glm::vec3(0.0f, 0.0f, 1.0f)));
+
 					
 		glm::mat4 Prj = glm::perspective(glm::radians(45.0f),
 						swapChainExtent.width / (float) swapChainExtent.height,
