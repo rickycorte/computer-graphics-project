@@ -2859,8 +2859,9 @@ private:
 
 		glm::vec3 aroundRotation = tpcRadius * glm::vec3(glm::cos(CamAng.y) * glm::sin(CamAng.x), glm::cos(CamAng.x), glm::sin(CamAng.y) * glm::sin(CamAng.x));
 
+		CamPos = missileCurrentPostion + aroundRotation;
 		glm::mat4 CamMat = glm::lookAt(
-			missileCurrentPostion + aroundRotation,
+			CamPos,
 			missileCurrentPostion + glm::vec3(0, 1, 0), // missle center is at bottom so we need to offset it a bit
 			glm::vec3(0,1,0) // up
 		);
