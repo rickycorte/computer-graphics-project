@@ -100,8 +100,9 @@ struct Model {
 
 const std::vector<Model> SceneToLoad = {
 	{"rocket.obj", OBJ, "rocket/rocket2_body_BaseColor.png", "rocket/rocket2_body_Normal.png", "rocket/rocket2_body_Metallic.png", {75,0.5f,4}, 1.0},
-	{"blue_missile.obj", OBJ, "blue_missile/missile_diffuse.jpg", "blue_missile/missile_normal.jpg", "blue_missile/missile_ao.jpg", {4,0,6}, .02f},
-	{"terrain.obj", OBJ, "terrain/diff.png", "terrain/norm.png", "terrain/ao.png", {0, -2, -57}, .1f}
+	{"blue_missile.obj", OBJ, "blue_missile/missile_diffuse.jpg", "blue_missile/missile_normal.jpg", "blue_missile/missile_ao.jpg", {20,1.4f,60}, .02f},
+	{"terrain.obj", OBJ, "terrain/diff.png", "terrain/norm.png", "terrain/ao.png", {0, -2, -57}, .2f},
+	//{"LargePlane.obj", OBJ, "redbricks2b-alb.png", "redbricks2b-norm_hei.png", "redbricks2b-met_rou_ao.png", {0,0,0}, 10.0f}
 };
 
 struct SkyBoxModel {
@@ -372,7 +373,7 @@ private:
 
 	// Camera
 	glm::vec3 CamAng = glm::vec3(1, 0, 0);
-	glm::vec3 CamPos = glm::vec3(0.0f, 0.5f, 5.0f);
+	glm::vec3 CamPos = glm::vec3(0.0f);
 
 	float tpcRadius = 10.0f;
 
@@ -2828,7 +2829,7 @@ private:
 			// on start calculate the destination height
 			if (isSimulationRunning) 
 			{
-				missileDestination.y = getTerrainHeigh(missileDestination); // remove a little to have the missile pass a bit the terrain
+				missileDestination.y = getTerrainHeigh(missileDestination) - 1; // remove a little to have the missile pass a bit the terrain
 				std::cout << "Computed destination height: " << missileDestination.y << "\n";
 			}
 		}
@@ -2868,7 +2869,7 @@ private:
 
 
 		glm::mat3 CamDir = glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.y , glm::vec3(0.0f, 1.0f, 0.0f))) *
-			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f)));
+			glm::mat3(glm::rotate(glm::mat4(1.0f), glm::radians(90.0f) + CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f)));
 		    // * glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.z, glm::vec3(0.0f, 0.0f, 1.0f)));
 
 					
