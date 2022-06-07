@@ -158,7 +158,7 @@ protected:
 	float missileScale = 0.02;
 
 	Model skybox;
-	SkyboxTexture skyboxTexture;
+	Texture skyboxTexture;
 	DescriptorSet skyboxDs;
 
 	//cam settings
@@ -176,15 +176,13 @@ protected:
 	float missileSpeed = 5.0f;
 	float missileTopHeight = 10.0f;
 
-	
-
 	// Here you set the main application parameters
 	void setWindowParameters() {
 		// window size, titile and initial background
 		windowWidth = 800;
 		windowHeight = 600;
 		windowTitle = "Missile Simulator";
-		initialBackgroundColor = { 1.0f, 1.0f, 1.0f, 0.0f };
+		initialBackgroundColor = { 0, 0, 0.0f, 0.1f };
 
 		// Descriptor pool sizes
 		// 2 objs + 6 skybox blocks
@@ -238,10 +236,12 @@ protected:
 				{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
 			});
 		
-		skyboxPipeline.init(this, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", { &skyboxDSL });
+		//skyboxPipeline.init(this, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", { &skyboxDSL });
+		skyboxPipeline.init(this, "shaders/vert.spv", "shaders/frag.spv", { &skyboxDSL});
 
-		skybox.init(this, "models/SkyBoxCube.obj");
-		skyboxTexture.init(this, "textures/sky/");
+		skybox.init(this, "models/sky_sphere.obj");
+		//skyboxTexture.init(this, "textures/sky/");
+		skyboxTexture.init(this, "textures/animecloud.png");
 		skyboxDs.init(this, &skyboxDSL, {
 				{0, UNIFORM, sizeof(SkyboxBufferObject), nullptr},
 				{1, TEXTURE, 0, &skyboxTexture}
@@ -535,10 +535,10 @@ protected:
 		//  skybox
 		SkyboxBufferObject sbo;
 
-		glm::mat3 CamDir = glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
-			glm::mat3(glm::rotate(glm::mat4(1.0f), glm::radians(90.0f) + CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f)));
+		glm::mat3 CamDir = glm::mat3(glm::rotate(glm::mat4(1.0f), - CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
+			glm::mat3(glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f) + CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f)));
 
-		sbo.mMat = glm::mat4(1.0f);
+		sbo.mMat = glm::scale(glm::mat4(1.0f), 1.0f * glm::vec3(1));
 		sbo.nMat = glm::mat4(1.0f);
 		sbo.mvpMat = ubo.proj * glm::transpose(glm::mat4(CamDir));
 
