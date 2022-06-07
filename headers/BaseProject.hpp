@@ -202,9 +202,9 @@ struct Texture {
 	VkImageView textureImageView;
 	VkSampler textureSampler;
 	
-	void createTextureImage(std::string file);
-	void createTextureImageView();
-	void createTextureSampler();
+	virtual void createTextureImage(std::string file);
+	virtual void createTextureImageView();
+	virtual void createTextureSampler();
 
 	void init(BaseProject *bp, std::string file);
 	void cleanup();
@@ -278,7 +278,6 @@ public:
         cleanup();
     }
 
-protected:
 	uint32_t windowWidth;
 	uint32_t windowHeight;
 	std::string windowTitle;
@@ -801,18 +800,20 @@ protected:
 	// Lesson 14
 	VkImageView createImageView(VkImage image, VkFormat format,
 								VkImageAspectFlags aspectFlags,
-								uint32_t mipLevels // New in Lesson 23
+								uint32_t mipLevels,
+								VkImageViewType type = VK_IMAGE_VIEW_TYPE_2D,
+								int layerCount = 1
 								) {
 		VkImageViewCreateInfo viewInfo{};
 		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		viewInfo.image = image;
-		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		viewInfo.viewType = type;
 		viewInfo.format = format;
 		viewInfo.subresourceRange.aspectMask = aspectFlags;
 		viewInfo.subresourceRange.baseMipLevel = 0;
 		viewInfo.subresourceRange.levelCount = mipLevels;
 		viewInfo.subresourceRange.baseArrayLayer = 0;
-		viewInfo.subresourceRange.layerCount = 1;
+		viewInfo.subresourceRange.layerCount = layerCount;
 		VkImageView imageView;
 
 		VkResult result = vkCreateImageView(device, &viewInfo, nullptr,
@@ -998,7 +999,7 @@ protected:
 	// New - Lesson 23
 	void generateMipmaps(VkImage image, VkFormat imageFormat,
 						 int32_t texWidth, int32_t texHeight,
-						 uint32_t mipLevels) {
+						 uint32_t mipLevels, int layerCount = 1) {
 		VkFormatProperties formatProperties;
 		vkGetPhysicalDeviceFormatProperties(physicalDevice, imageFormat,
 							&formatProperties);
@@ -1017,7 +1018,7 @@ protected:
 		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		barrier.subresourceRange.baseArrayLayer = 0;
-		barrier.subresourceRange.layerCount = 1;
+		barrier.subresourceRange.layerCount = layerCount;
 		barrier.subresourceRange.levelCount = 1;
 
 		int32_t mipWidth = texWidth;
@@ -1087,7 +1088,7 @@ protected:
 	// New - Lesson 23
 	void transitionImageLayout(VkImage image, VkFormat format,
 					VkImageLayout oldLayout, VkImageLayout newLayout,
-					uint32_t mipLevels) {
+					uint32_t mipLevels, int layerCount = 1) {
 		VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
 		VkImageMemoryBarrier barrier{};
@@ -1102,7 +1103,7 @@ protected:
 		barrier.subresourceRange.baseMipLevel = 0;
 		barrier.subresourceRange.levelCount = mipLevels;
 		barrier.subresourceRange.baseArrayLayer = 0;
-		barrier.subresourceRange.layerCount = 1;
+		barrier.subresourceRange.layerCount = layerCount;
 
 		barrier.srcAccessMask = 0;
 		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -1117,7 +1118,7 @@ protected:
 	
 	// New - Lesson 23
 	void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t
-						   width, uint32_t height) {
+						   width, uint32_t height, int layerCount = 1) {
 		VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 		
 		VkBufferImageCopy region{};
@@ -1127,7 +1128,7 @@ protected:
 		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		region.imageSubresource.mipLevel = 0;
 		region.imageSubresource.baseArrayLayer = 0;
-		region.imageSubresource.layerCount = 1;
+		region.imageSubresource.layerCount = layerCount;
 		region.imageOffset = {0, 0, 0};
 		region.imageExtent = {width, height, 1};
 		

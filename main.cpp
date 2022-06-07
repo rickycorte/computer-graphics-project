@@ -9,6 +9,120 @@ struct UniformBufferObject {
 	alignas(16) glm::mat4 proj;
 };
 
+struct SkyboxBufferObject {
+	alignas(16) glm::mat4 mvpMat;
+	alignas(16) glm::mat4 mMat;
+	alignas(16) glm::mat4 nMat;
+};
+
+
+struct SkyboxTexture : public Texture
+{
+	void createSkyBoxImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkImage& image,
+		VkDeviceMemory& imageMemory)
+	{
+		VkImageCreateInfo imageInfo{};
+		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		imageInfo.imageType = VK_IMAGE_TYPE_2D;
+		imageInfo.extent.width = width;
+		imageInfo.extent.height = height;
+		imageInfo.extent.depth = 1;
+		imageInfo.mipLevels = mipLevels;
+		imageInfo.arrayLayers = 6;
+		imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+
+		VkResult result = vkCreateImage(BP->device, &imageInfo, nullptr, &image);
+		if (result != VK_SUCCESS) {
+			PrintVkError(result);
+			throw std::runtime_error("failed to create image!");
+		}
+
+		VkMemoryRequirements memRequirements;
+		vkGetImageMemoryRequirements(BP->device, image, &memRequirements);
+
+		VkMemoryAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		allocInfo.allocationSize = memRequirements.size;
+		allocInfo.memoryTypeIndex = BP->findMemoryType(memRequirements.memoryTypeBits,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		if (vkAllocateMemory(BP->device, &allocInfo, nullptr, &imageMemory) !=
+			VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate image memory!");
+		}
+
+		vkBindImageMemory(BP->device, image, imageMemory, 0);
+	}
+
+	void createTextureImage(std::string folder_path) override
+	{
+		const char* const FName[6] = { "posx.png", "negx.png", "posy.png", "negy.png", "posz.png", "negz.png" };
+
+		int texWidth, texHeight, texChannels;
+		stbi_uc* pixels[6];
+
+		for (int i = 0; i < 6; i++) {
+			pixels[i] = stbi_load((folder_path + FName[i]).c_str(), &texWidth, &texHeight,
+				&texChannels, STBI_rgb_alpha);
+			if (!pixels[i]) {
+				std::cout << (folder_path + FName[i]).c_str() << "\n";
+				throw std::runtime_error("failed to load texture image!");
+			}
+			//std::cout << FName[i] << " -> size: " << texWidth << "x" << texHeight << ", ch: " << texChannels << "\n";
+		}
+
+		VkDeviceSize imageSize = texWidth * texHeight * 4;
+		VkDeviceSize totalImageSize = texWidth * texHeight * 4 * 6;
+		mipLevels = static_cast<uint32_t>(std::floor(
+			std::log2(std::max(texWidth, texHeight)))) + 1;
+
+		VkBuffer stagingBuffer;
+		VkDeviceMemory stagingBufferMemory;
+
+		BP->createBuffer(totalImageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			stagingBuffer, stagingBufferMemory);
+
+		void* data;
+		vkMapMemory(BP->device, stagingBufferMemory, 0, totalImageSize, 0, &data);
+		for (int i = 0; i < 6; i++) {
+			memcpy(static_cast<char*>(data) + imageSize * i, pixels[i], static_cast<size_t>(imageSize));
+		}
+		vkUnmapMemory(BP->device, stagingBufferMemory);
+
+		for (int i = 0; i < 6; i++) {
+			stbi_image_free(pixels[i]);
+		}
+
+		createSkyBoxImage(texWidth, texHeight, mipLevels, textureImage, textureImageMemory);
+
+		BP->transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels, 6);
+		BP->copyBufferToImage(stagingBuffer, textureImage,
+			static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 6);
+
+		BP->generateMipmaps(textureImage, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels, 6);
+
+		vkDestroyBuffer(BP->device, stagingBuffer, nullptr);
+		vkFreeMemory(BP->device, stagingBufferMemory, nullptr);
+	}
+
+	void createTextureImageView() override
+	{
+		textureImageView = BP->createImageView(textureImage,
+			VK_FORMAT_R8G8B8A8_SRGB,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			mipLevels,
+			VK_IMAGE_VIEW_TYPE_CUBE, 6);
+	}
+
+};
 
 // MAIN ! 
 class MyProject : public BaseProject {
@@ -20,6 +134,12 @@ protected:
 
 	// Pipelines [Shader couples]
 	Pipeline standardPipeline;
+
+	// Descriptor Layouts [what will be passed to the shaders]
+	DescriptorSetLayout skyboxDSL;
+
+	// Pipelines [Shader couples]
+	Pipeline skyboxPipeline;
 
 	// Models, textures and Descriptors (values assigned to the uniforms)
 	Model Terrain;
@@ -36,6 +156,10 @@ protected:
 	glm::vec3 missilePosition = glm::vec3(20, 1.4f, 60);
 	glm::vec3 missileStartPostion = missilePosition;
 	float missileScale = 0.02;
+
+	Model skybox;
+	SkyboxTexture skyboxTexture;
+	DescriptorSet skyboxDs;
 
 	//cam settings
 	glm::vec3 CamAng = glm::vec3(1, 0, 0);
@@ -60,12 +184,13 @@ protected:
 		windowWidth = 800;
 		windowHeight = 600;
 		windowTitle = "Missile Simulator";
-		initialBackgroundColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+		initialBackgroundColor = { 1.0f, 1.0f, 1.0f, 0.0f };
 
 		// Descriptor pool sizes
-		uniformBlocksInPool = 2;
-		texturesInPool = 2;
-		setsInPool = 2;
+		// 2 objs + 6 skybox blocks
+		uniformBlocksInPool = 8;
+		texturesInPool = 8;
+		setsInPool = 8;
 	}
 
 	// Here you load and setup all your Vulkan objects
@@ -105,6 +230,22 @@ protected:
 				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
 				{1, TEXTURE, 0, &MissileTexture}
 			});
+
+
+		/************************************************************************************/
+		skyboxDSL.init(this, {
+				{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT},
+				{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
+			});
+		
+		skyboxPipeline.init(this, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", { &skyboxDSL });
+
+		skybox.init(this, "models/SkyBoxCube.obj");
+		skyboxTexture.init(this, "textures/sky/");
+		skyboxDs.init(this, &skyboxDSL, {
+				{0, UNIFORM, sizeof(SkyboxBufferObject), nullptr},
+				{1, TEXTURE, 0, &skyboxTexture}
+			});
 	}
 
 	// Here you destroy all the objects you created!		
@@ -119,6 +260,13 @@ protected:
 
 		standardPipeline.cleanup();
 		standardDSL.cleanup();
+
+		skyboxDs.cleanup();
+		skyboxTexture.cleanup();
+		skybox.cleanup();
+
+		skyboxPipeline.cleanup();
+		skyboxDSL.cleanup();
 	}
 
 	// Here it is the creation of the command buffer:
@@ -159,6 +307,20 @@ protected:
 			0, nullptr);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(Missile.indices.size()), 1, 0, 0, 0);
+
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			skyboxPipeline.graphicsPipeline);
+
+		VkBuffer vertexBuffers3[] = { skybox.vertexBuffer };
+		VkDeviceSize offsets3[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers3, offsets3);
+		vkCmdBindIndexBuffer(commandBuffer, skybox.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			skyboxPipeline.pipelineLayout, 0, 1, &skyboxDs.descriptorSets[currentImage],
+			0, nullptr);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(skybox.indices.size()), 1, 0, 0, 0);
 	}
 
 	//crea world matrix del missile
@@ -327,7 +489,7 @@ protected:
 
 		ubo.proj = glm::perspective(glm::radians(45.0f),
 			swapChainExtent.width / (float)swapChainExtent.height,
-			0.1f, 500.0f);
+			0.1f, 1000.0f);
 
 		ubo.proj[1][1] *= -1;
 
@@ -369,6 +531,20 @@ protected:
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(device, TerrainDs.uniformBuffersMemory[0][currentImage]);
 
+		/************************************************************************************************************/
+		//  skybox
+		SkyboxBufferObject sbo;
+
+		glm::mat3 CamDir = glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
+			glm::mat3(glm::rotate(glm::mat4(1.0f), glm::radians(90.0f) + CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f)));
+
+		sbo.mMat = glm::mat4(1.0f);
+		sbo.nMat = glm::mat4(1.0f);
+		sbo.mvpMat = ubo.proj * glm::transpose(glm::mat4(CamDir));
+
+		vkMapMemory(device, skyboxDs.uniformBuffersMemory[0][currentImage], 0, sizeof(sbo), 0, &data);
+		memcpy(data, &sbo, sizeof(sbo));
+		vkUnmapMemory(device, skyboxDs.uniformBuffersMemory[0][currentImage]);
 	}
 };
 
