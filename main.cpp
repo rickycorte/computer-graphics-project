@@ -7,6 +7,8 @@ struct UniformBufferObject {
 	alignas(16) glm::mat4 model;
 	alignas(16) glm::mat4 view;
 	alignas(16) glm::mat4 proj;
+	alignas(16) glm::vec3 missLightPos;
+	alignas(16) glm::vec3 missLightDir;
 };
 
 struct SkyboxBufferObject {
@@ -46,6 +48,8 @@ protected:
 
 	glm::vec3 missilePosition = glm::vec3(20, 1.4f, 60);
 	glm::vec3 missileStartPostion = missilePosition;
+	glm::vec3 oldMissilePosition = missilePosition;
+	glm::vec3 missileDirection = glm::vec3(0.f, 1.f, 0.f); //missileBottomLightDir = - missiledirection
 	float missileScale = 0.02;
 
 	Model skybox;
@@ -64,7 +68,7 @@ protected:
 	bool isSimulationRunning = false;
 
 	glm::vec3 missileDestination = glm::vec3(-10.0f, 0.0f, -15.0f);
-	float missileSpeed = 10.0f;
+	float missileSpeed = 1.0f;
 	float missileTopHeight = 100.0f;
 
 	// Here you set the main application parameters
@@ -217,12 +221,12 @@ protected:
 	//crea world matrix del missile
 	glm::mat4 getMissileWorldMatrix(glm::vec3 startpoint, glm::vec3 destination, float dt) {
 
+		oldMissilePosition = missilePosition;
 		//aggiornamento posizione e direzione
 		float yaw = 0.0f; //angolo di rotazione attorno asse y,  asse_x -> 0.0 radianti
 		float pitch = 0.0f;
 
 		//simulazione in esecuzione
-		//dir_punta = glm::normalize(destination - missileCurrentPostion);
 		yaw = atan2(destination[2] - startpoint[2], destination[0] - startpoint[0]);
 		//std::cout << "Yaw (deg): " << 180 * yaw / 3.14 << std::endl;
 		//aggiornamento posizione
@@ -247,6 +251,10 @@ protected:
 
 		//std::cout << "Pitch (deg): " << 180 * pitch / 3.14 << std::endl;
 		//std::cout << "Pos: " << missilePosition[0] << " " << missilePosition[1] << " " << missilePosition[2] << "\n";
+
+		//ricavo direzione missile
+		missileDirection = glm::normalize(missilePosition - oldMissilePosition);
+
 
 		glm::mat4 out = glm::translate(glm::mat4(1.0), missilePosition) *
 			glm::rotate(glm::mat4(1.0), yaw, glm::vec3(0, 1, 0)) *
@@ -404,6 +412,9 @@ protected:
 		}
 
 		ubo.model = glm::scale(ubo.model, missileScale * glm::vec3(1));
+
+		ubo.missLightDir = -missileDirection;
+		ubo.missLightPos = missilePosition;
 
 
 		vkMapMemory(device, MissileDs.uniformBuffersMemory[0][currentImage], 0,
