@@ -27,3 +27,27 @@ void main() {
 	
 	outColor = vec4(clamp(ambient + diffuse + specular, vec3(0.0f), vec3(1.0f)), 1.0f);
 }
+
+//pos = viewDirection?
+vec4 spot_light(vec3 pos, vec3 diffColor, vec3 N) {
+	vec3 lightColor = vec3(253,179,6); //colore fiamma
+
+	// Spot light direction
+	//luce fondomissile, da implementare
+	vec3 missileBottomLightPos;
+	vec3 dir = normalize(missileBottomLightPos - pos);
+	
+	// Spot light color
+	vec3 missileBottomLightDir; //da implementare: -dirMotoMissile 
+	float cos_in = 0.9f;
+	float cos_out = 0.6f;
+	int decay_exp = 2;
+	float g = 1.5;
+	float coeff = pow(g/length(missileBottomLightPos - pos) ,decay_exp);
+	float dimming = clamp((dot(normalize(missileBottomLightPos - pos),missileBottomLightDir)-cos_out)/(cos_in - cos_out),0.0f,1.0f);
+	vec3 color = lightColor * coeff * dimming;
+
+	vec3 diffuse = diffColor*(max(dot(N, dir),0.0f));
+
+	return vec4(diffuse*color, 1.f);
+}
