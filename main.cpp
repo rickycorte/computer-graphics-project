@@ -52,6 +52,10 @@ protected:
 	glm::vec3 missileDirection = glm::vec3(0.f, 1.f, 0.f); //missileBottomLightDir = - missiledirection
 	float missileScale = 0.02;
 
+	Model AimItem;
+	Texture AimItemTexture;
+	DescriptorSet AimItemDs;
+
 	Model skybox;
 	Texture skyboxTexture;
 	DescriptorSet skyboxDs;
@@ -64,11 +68,15 @@ protected:
 	const float ROT_SPEED = glm::radians(60.0f);
 	const float MOUSE_RES = 500.0f;
 
+	const float AIM_SPEED = 50;
+	const float AIM_DISTANCE = 60; // max distance where yopu can move dest around terrain center
+
 	// simulation settings and vars
 	bool isSimulationRunning = false;
+	bool aimMode = false;
 
 	glm::vec3 missileDestination = glm::vec3(-10.0f, 0.0f, -15.0f);
-	float missileSpeed = 1.0f;
+	float missileSpeed = 10.0f;
 	float missileTopHeight = 100.0f;
 
 	// Here you set the main application parameters
@@ -124,6 +132,13 @@ protected:
 				{1, TEXTURE, 0, &MissileTexture}
 			});
 
+
+		AimItem.init(this, "models/sky_sphere.obj");
+		AimItemTexture.init(this, "textures/aim.png");
+		AimItemDs.init(this, &standardDSL, {
+				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+				{1, TEXTURE, 0, &AimItemTexture}
+			});
 
 		/************************************************************************************/
 		skyboxDSL.init(this, {
@@ -202,6 +217,20 @@ protected:
 			0, nullptr);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(Missile.indices.size()), 1, 0, 0, 0);
+
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			skyboxPipeline.graphicsPipeline);
+
+		VkBuffer vertexBuffers4[] = { AimItem.vertexBuffer };
+		VkDeviceSize offsets4[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers4, offsets4);
+		vkCmdBindIndexBuffer(commandBuffer, AimItem.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			standardPipeline.pipelineLayout, 0, 1, &AimItemDs.descriptorSets[currentImage],
+			0, nullptr);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(AimItem.indices.size()), 1, 0, 0, 0);
 
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			skyboxPipeline.graphicsPipeline);
@@ -341,16 +370,28 @@ protected:
 		}
 
 		if (glfwGetKey(window, GLFW_KEY_LEFT)) {
-			CamAng.y += deltaT * ROT_SPEED;
+			if (aimMode)
+				missileDestination.x -= deltaT * AIM_SPEED;
+			else
+				CamAng.y += deltaT * ROT_SPEED;
 		}
 		if (glfwGetKey(window, GLFW_KEY_RIGHT)) {
-			CamAng.y -= deltaT * ROT_SPEED;
+			if (aimMode)
+				missileDestination.x += deltaT * AIM_SPEED;
+			else
+				CamAng.y -= deltaT * ROT_SPEED;
 		}
 		if (glfwGetKey(window, GLFW_KEY_UP)) {
-			CamAng.x -= deltaT * ROT_SPEED;
+			if (aimMode)
+				missileDestination.z -= deltaT * AIM_SPEED;
+			else
+				CamAng.x -= deltaT * ROT_SPEED;
 		}
 		if (glfwGetKey(window, GLFW_KEY_DOWN)) {
-			CamAng.x += deltaT * ROT_SPEED;
+			if (aimMode)
+				missileDestination.z += deltaT * AIM_SPEED;
+			else
+				CamAng.x += deltaT * ROT_SPEED;
 		}
 
 		if (glfwGetKey(window, GLFW_KEY_SPACE) && spaceToggleTimer == 0.0f)
@@ -359,6 +400,7 @@ protected:
 			if (!isSimulationRunning) {
 				missilePosition = missileStartPostion;
 				std::cout << "Missile current position resetted\n";
+				aimMode = false;
 			}
 
 			spaceToggleTimer += .5f; // delay until next input
@@ -373,18 +415,35 @@ protected:
 			}
 		}
 
+		if (glfwGetKey(window, GLFW_KEY_M) && spaceToggleTimer == 0.0f && !isSimulationRunning)
+		{
+			spaceToggleTimer += .5f; // delay until next input
+			aimMode = !aimMode;
+			std::cout << "Aim mode " << (aimMode ? "enabled" : "disabled") << "\n";
+		}
+
 		/************************************************************************************************************/
 		//  shared matrices
 
 		glm::vec3 aroundRotation = tpcRadius * glm::vec3(glm::cos(CamAng.y) * glm::sin(CamAng.x), glm::cos(CamAng.x), glm::sin(CamAng.y) * glm::sin(CamAng.x));
 
 
-		ubo.view = glm::lookAt(
-			missilePosition + aroundRotation,
-			missilePosition + glm::vec3(0, 1, 0), // missle center is at bottom so we need to offset it a bit
-			glm::vec3(0, 1, 0) // up
-		);
+		if (aimMode)
+		{
+			ubo.view = glm::lookAt(
+				terrainPosition + glm::vec3(0, 270, 0),
+				terrainPosition + glm::vec3(0, 1, 0), // missle center is at bottom so we need to offset it a bit
+				glm::vec3(0, 0, -1) // up
+			);
 
+		}
+		else {
+			ubo.view = glm::lookAt(
+				missilePosition + aroundRotation,
+				missilePosition + glm::vec3(0, 1, 0), // missle center is at bottom so we need to offset it a bit
+				glm::vec3(0, 1, 0) // up
+			);
+		}
 
 		ubo.proj = glm::perspective(glm::radians(45.0f),
 			swapChainExtent.width / (float)swapChainExtent.height,
@@ -394,6 +453,9 @@ protected:
 
 		/************************************************************************************************************/
 		// missile
+
+		missileDestination.x = std::clamp(missileDestination.x, terrainPosition.x - AIM_DISTANCE, terrainPosition.x + AIM_DISTANCE);
+		missileDestination.z = std::clamp(missileDestination.z, terrainPosition.z - AIM_DISTANCE, terrainPosition.z + AIM_DISTANCE);
 
 		if (isSimulationRunning)
 		{
@@ -423,6 +485,17 @@ protected:
 		vkUnmapMemory(device, MissileDs.uniformBuffersMemory[0][currentImage]);
 
 		/************************************************************************************************************/
+		// aim dot
+		ubo.model = glm::translate(glm::mat4(1.0f), missileDestination + glm::vec3(0, aimMode ? 100 : -1000,0));
+		ubo.model = glm::scale(ubo.model, .005f * glm::vec3(1));
+
+		// Here is where you actually update your uniforms
+		vkMapMemory(device, AimItemDs.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(ubo), 0, &data);
+		memcpy(data, &ubo, sizeof(ubo));
+		vkUnmapMemory(device, AimItemDs.uniformBuffersMemory[0][currentImage]);
+
+		/************************************************************************************************************/
 		// terrain
 		ubo.model = glm::translate(glm::mat4(1.0f), terrainPosition);
 		ubo.model = glm::scale(ubo.model, terrainScale * glm::vec3(1));
@@ -437,8 +510,8 @@ protected:
 		//  skybox
 		SkyboxBufferObject sbo;
 
-		glm::mat3 CamDir = glm::mat3(glm::rotate(glm::mat4(1.0f), - CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
-			glm::mat3(glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f) + CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f)));
+		glm::mat3 CamDir = glm::mat3(glm::rotate(glm::mat4(1.0f), -CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
+				glm::mat3(glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f) + CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f)));
 
 		sbo.model = glm::scale(glm::mat4(1.0f), 1.0f * glm::vec3(1));
 		sbo.view = glm::mat4(1.0f);
