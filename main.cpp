@@ -10,122 +10,13 @@ struct UniformBufferObject {
 };
 
 struct SkyboxBufferObject {
-	alignas(16) glm::mat4 mvpMat;
-	alignas(16) glm::mat4 mMat;
-	alignas(16) glm::mat4 nMat;
-};
-
-
-struct SkyboxTexture : public Texture
-{
-	void createSkyBoxImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkImage& image,
-		VkDeviceMemory& imageMemory)
-	{
-		VkImageCreateInfo imageInfo{};
-		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-		imageInfo.imageType = VK_IMAGE_TYPE_2D;
-		imageInfo.extent.width = width;
-		imageInfo.extent.height = height;
-		imageInfo.extent.depth = 1;
-		imageInfo.mipLevels = mipLevels;
-		imageInfo.arrayLayers = 6;
-		imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
-		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-		imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-
-		VkResult result = vkCreateImage(BP->device, &imageInfo, nullptr, &image);
-		if (result != VK_SUCCESS) {
-			PrintVkError(result);
-			throw std::runtime_error("failed to create image!");
-		}
-
-		VkMemoryRequirements memRequirements;
-		vkGetImageMemoryRequirements(BP->device, image, &memRequirements);
-
-		VkMemoryAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		allocInfo.allocationSize = memRequirements.size;
-		allocInfo.memoryTypeIndex = BP->findMemoryType(memRequirements.memoryTypeBits,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-		if (vkAllocateMemory(BP->device, &allocInfo, nullptr, &imageMemory) !=
-			VK_SUCCESS) {
-			throw std::runtime_error("failed to allocate image memory!");
-		}
-
-		vkBindImageMemory(BP->device, image, imageMemory, 0);
-	}
-
-	void createTextureImage(std::string folder_path) override
-	{
-		const char* const FName[6] = { "posx.png", "negx.png", "posy.png", "negy.png", "posz.png", "negz.png" };
-
-		int texWidth, texHeight, texChannels;
-		stbi_uc* pixels[6];
-
-		for (int i = 0; i < 6; i++) {
-			pixels[i] = stbi_load((folder_path + FName[i]).c_str(), &texWidth, &texHeight,
-				&texChannels, STBI_rgb_alpha);
-			if (!pixels[i]) {
-				std::cout << (folder_path + FName[i]).c_str() << "\n";
-				throw std::runtime_error("failed to load texture image!");
-			}
-			//std::cout << FName[i] << " -> size: " << texWidth << "x" << texHeight << ", ch: " << texChannels << "\n";
-		}
-
-		VkDeviceSize imageSize = texWidth * texHeight * 4;
-		VkDeviceSize totalImageSize = texWidth * texHeight * 4 * 6;
-		mipLevels = static_cast<uint32_t>(std::floor(
-			std::log2(std::max(texWidth, texHeight)))) + 1;
-
-		VkBuffer stagingBuffer;
-		VkDeviceMemory stagingBufferMemory;
-
-		BP->createBuffer(totalImageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			stagingBuffer, stagingBufferMemory);
-
-		void* data;
-		vkMapMemory(BP->device, stagingBufferMemory, 0, totalImageSize, 0, &data);
-		for (int i = 0; i < 6; i++) {
-			memcpy(static_cast<char*>(data) + imageSize * i, pixels[i], static_cast<size_t>(imageSize));
-		}
-		vkUnmapMemory(BP->device, stagingBufferMemory);
-
-		for (int i = 0; i < 6; i++) {
-			stbi_image_free(pixels[i]);
-		}
-
-		createSkyBoxImage(texWidth, texHeight, mipLevels, textureImage, textureImageMemory);
-
-		BP->transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels, 6);
-		BP->copyBufferToImage(stagingBuffer, textureImage,
-			static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 6);
-
-		BP->generateMipmaps(textureImage, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels, 6);
-
-		vkDestroyBuffer(BP->device, stagingBuffer, nullptr);
-		vkFreeMemory(BP->device, stagingBufferMemory, nullptr);
-	}
-
-	void createTextureImageView() override
-	{
-		textureImageView = BP->createImageView(textureImage,
-			VK_FORMAT_R8G8B8A8_SRGB,
-			VK_IMAGE_ASPECT_COLOR_BIT,
-			mipLevels,
-			VK_IMAGE_VIEW_TYPE_CUBE, 6);
-	}
-
+	alignas(16) glm::mat4 model;
+	alignas(16) glm::mat4 view;
+	alignas(16) glm::mat4 proj;
 };
 
 // MAIN ! 
-class MyProject : public BaseProject {
+class MissileSimulator : public BaseProject {
 protected:
 	// Here you list all the Vulkan objects you need:
 
@@ -173,8 +64,8 @@ protected:
 	bool isSimulationRunning = false;
 
 	glm::vec3 missileDestination = glm::vec3(-10.0f, 0.0f, -15.0f);
-	float missileSpeed = 5.0f;
-	float missileTopHeight = 10.0f;
+	float missileSpeed = 10.0f;
+	float missileTopHeight = 100.0f;
 
 	// Here you set the main application parameters
 	void setWindowParameters() {
@@ -237,7 +128,7 @@ protected:
 			});
 		
 		//skyboxPipeline.init(this, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", { &skyboxDSL });
-		skyboxPipeline.init(this, "shaders/vert.spv", "shaders/frag.spv", { &skyboxDSL});
+		skyboxPipeline.init(this, "shaders/sky/vert.spv", "shaders/sky/frag.spv", { &skyboxDSL});
 
 		skybox.init(this, "models/sky_sphere.obj");
 		//skyboxTexture.init(this, "textures/sky/");
@@ -538,9 +429,9 @@ protected:
 		glm::mat3 CamDir = glm::mat3(glm::rotate(glm::mat4(1.0f), - CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
 			glm::mat3(glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f) + CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f)));
 
-		sbo.mMat = glm::scale(glm::mat4(1.0f), 1.0f * glm::vec3(1));
-		sbo.nMat = glm::mat4(1.0f);
-		sbo.mvpMat = ubo.proj * glm::transpose(glm::mat4(CamDir));
+		sbo.model = glm::scale(glm::mat4(1.0f), 1.0f * glm::vec3(1));
+		sbo.view = glm::mat4(1.0f);
+		sbo.proj = ubo.proj * glm::transpose(glm::mat4(CamDir));
 
 		vkMapMemory(device, skyboxDs.uniformBuffersMemory[0][currentImage], 0, sizeof(sbo), 0, &data);
 		memcpy(data, &sbo, sizeof(sbo));
@@ -550,7 +441,7 @@ protected:
 
 // This is the main: probably you do not need to touch this!
 int main() {
-	MyProject app;
+	MissileSimulator app;
 
 	try {
 		app.run();
