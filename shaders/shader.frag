@@ -1,6 +1,12 @@
 #version 450
 
-layout(binding = 1) uniform sampler2D texSampler;
+layout(set=0, binding = 0) uniform LightBufferObject {
+	vec3 globalLightDir;
+	vec3 globalLightColor;
+} lbo;
+
+layout(set=1, binding = 1) uniform sampler2D texSampler;
+
 
 layout(location = 0) in vec3 fragViewDir;
 layout(location = 1) in vec3 fragNorm;
@@ -35,7 +41,7 @@ void main() {
 	const vec3  specColor = vec3(1.0f, 1.0f, 1.0f);
 	const float specPower = 150.0f;
 
-	const vec3 L = vec3(-0.4830f, 0.8365f, -0.2588f); // directional light dir
+	const vec3 L = lbo.globalLightDir; // directional light dir
 	
 	vec3 N = normalize(fragNorm);
 	vec3 R = -reflect(L, N);
@@ -58,7 +64,7 @@ void main() {
 	//TODO: non hardcoddare i parametro
 	vec3 missile_engine_light = spot_light_color(fragPos, lightPos, -lightDir, 25, 1.5f, 0.96f, 0.65f, normalize(vec3(253.0f/255,179.0f/255,6.0f/255)));
 
-	vec3 directional_color = vec3(.1f);
+	vec3 directional_color = lbo.globalLightColor;
 	vec3 top_pos = lightPos + vec3(0, 4, 0); // TODO: non hardcoddare la posizione della cima, btw non va quando il razzo ruota per ovvie ragioni :#
 	vec3 missile_top_light = 50 * point_light_color(fragPos, top_pos, 0.5f, 4.0f, vec3(1,0,0)); // front multiplier is "intensity"
 
