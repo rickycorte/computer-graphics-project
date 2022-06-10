@@ -70,6 +70,6 @@ void main() {
 
 	vec3 light_sum = missile_top_light + missile_engine_light + directional_color;
 
-	outColor = vec4(clamp((diffuse + specular + ambient) * light_sum , vec3(0.0f), vec3(1.0f)), 1.0f);
+	outColor = vec4(clamp((diffuse + specular + ambient) * light_sum, vec3(0.0f), vec3(1.0f)), 1.0f);
 }
 
