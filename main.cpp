@@ -75,8 +75,8 @@ protected:
 	bool isSimulationRunning = false;
 	bool aimMode = false;
 
-	glm::vec3 missileDestination = glm::vec3(-10.0f, 0.0f, -15.0f);
-	float missileSpeed = 10.0f;
+	glm::vec3 missileDestination = glm::vec3(-10.0f, 0.0f, 15.0f);
+	float missileSpeed = 8.0f;
 	float missileTopHeight = 100.0f;
 
 	// Here you set the main application parameters
@@ -461,7 +461,7 @@ protected:
 		{
 			ubo.model = getMissileWorldMatrix(missileStartPostion, missileDestination, deltaT); // calculate moving position
 
-			if (glm::distance(missilePosition, missileDestination) < 0.1f)
+			if (glm::distance(missilePosition, missileDestination) < 0.3f)
 			{
 				isSimulationRunning = false;
 				std::cout << "Simulation ended\n";

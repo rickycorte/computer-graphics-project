@@ -26,5 +26,5 @@ void main() {
 	fragTexCoord = texCoord;
 	lightPos = ubo.lightPos;
 	lightDir = ubo.lightDir;
-	position = gl_Position.xyz;
+	position = gl_Position.xyz/gl_Position.w;
 }

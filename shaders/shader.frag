@@ -16,14 +16,15 @@ vec4 spot_light(vec3 pos, vec3 diffColor, vec3 N) {
 
 	// Spot light direction
 	//luce fondomissile, da implementare
-	vec3 missileBottomLightPos = lightPos;
+	vec3 missileBottomLightPos = lightPos; //lightPos = missilPos settato nel main
+	missileBottomLightPos.y += 15.f; //modificare la y della posizione della luce non sembra avere effetti
 	vec3 dir = normalize(missileBottomLightPos - pos);
 	
 	// Spot light color
-	vec3 missileBottomLightDir = lightDir; // -dirMotoMissile 
-	float cos_in = 0.9f;
-	float cos_out = 0.1f;
-	int decay_exp = 2;
+	vec3 missileBottomLightDir = -lightDir; // in teoria nel main lightDir è già assegnato a -dirMotoMissile, però qui è ri-invertito altrimenti la luce è al contrario per qualche arcano motivo 
+	float cos_in = 0.96f;
+	float cos_out = 0.65f; //toccare cos_in e cos_out mantenendo cos_in > cos_put rompe tutto senza motivo
+	float decay_exp = 1.5f;
 	float g = 25;
 	float coeff = pow(g/length(missileBottomLightPos - pos) ,decay_exp);
 	float dimming = clamp((dot(normalize(missileBottomLightPos - pos),missileBottomLightDir)-cos_out)/(cos_in - cos_out),0.0f,1.0f);
@@ -35,12 +36,13 @@ vec4 spot_light(vec3 pos, vec3 diffColor, vec3 N) {
 }
 
 vec4 point_light(vec3 pos, vec3 diffColor, vec3 N){
-	vec3 dir = normalize(lightPos - pos);
+	vec3 lightPos2 = lightPos; 
+	vec3 dir = normalize(lightPos2 - pos);
 	float g = 10;
 	int decay_exp = 1;
 	vec3 lightColor = normalize(vec3(253,179,6)); //colore fiamma
 
-	float coeff = pow(g/length(lightPos - pos) ,decay_exp);
+	float coeff = pow(g/length(lightPos2 - pos) ,decay_exp);
 	vec3 color = lightColor * coeff;
 	vec3 diffuse = diffColor*(max(dot(N, dir),0.0f));
 
@@ -64,6 +66,7 @@ void main() {
 	// Hemispheric ambient
 	vec3 ambient  = (vec3(0.1f,0.1f, 0.1f) * (1.0f + N.y) + vec3(0.0f,0.0f, 0.1f) * (1.0f - N.y)) * diffColor;
 	
-	outColor = vec4(clamp(ambient + diffuse + specular, vec3(0.0f), vec3(1.0f)), 1.0f); //+ spot_light(position,diffColor,N);
+	outColor = vec4(clamp(ambient + diffuse + specular, vec3(0.0f), vec3(0.5f)), 1.0f); //questo viene sovraascritto per testare, se viene sommato alla riga sotto la spotlight non si vede
+	outColor = spot_light(position, diffColor, N);
 }
 
