@@ -403,6 +403,7 @@ protected:
 			// reset current position before starting 
 			if (!isSimulationRunning) {
 				missilePosition = missileStartPostion;
+				missileDirection = glm::vec3(0, 1, 0);
 				std::cout << "Missile current position resetted\n";
 				aimMode = false;
 			}
@@ -475,6 +476,7 @@ protected:
 		{
 			ubo.model = getDefaultMissileWorldMatrix(); // reset position
 			missilePosition = missileStartPostion;
+			missileDirection = glm::vec3(0, 1, 0);
 		}
 
 		ubo.model = glm::scale(ubo.model, missileScale * glm::vec3(1));
