@@ -168,6 +168,10 @@ protected:
 		MissileTexture.cleanup();
 		Missile.cleanup();
 
+		AimItemDs.cleanup();
+		AimItemTexture.cleanup();
+		AimItem.cleanup();
+
 		standardPipeline.cleanup();
 		standardDSL.cleanup();
 
