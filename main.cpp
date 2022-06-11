@@ -124,41 +124,36 @@ protected:
 
 	// Here you load and setup all your Vulkan objects
 	void localInit() {
-		// Descriptor Layouts [what will be passed to the shaders]
-		standardDSL.init(this, {
-			// this array contains the binding:
-			// first  element : the binding number
-			// second element : the time of element (buffer or texture)
-			// third  element : the pipeline stage where it will be used
-			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT},
-			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
-			});
 		
+		/************************************************************************************/
+		// standard lit pipeline
+
 		lightDSL.init(this, {
-			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT},
+				{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT},
 			});
 
 		lightDs.init(this, &lightDSL, { {0, UNIFORM, sizeof(LightBufferObject), nullptr} });
 
-		// Pipelines [Shader couples]
-		// The last array, is a vector of pointer to the layouts of the sets that will
-		// be used in this pipeline. The first element will be set 0, and so on..
+		standardDSL.init(this, {
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT},
+			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
+			});
+	
 		standardPipeline.init(this, "shaders/vert.spv", "shaders/frag.spv", { &lightDSL, &standardDSL });
 
-		// Models, textures and Descriptors (values assigned to the uniforms)
+
+		/************************************************************************************/
+		// lit object init
+
+		//terrain
 		Terrain.init(this, "models/terrain.obj");
 		TerrainTexture.init(this, "textures/terrain/diff.png");
 		TerrainDs.init(this, &standardDSL, {
-			// the second parameter, is a pointer to the Uniform Set Layout of this set
-			// the last parameter is an array, with one element per binding of the set.
-			// first  elmenet : the binding number
-			// second element : UNIFORM or TEXTURE (an enum) depending on the type
-			// third  element : only for UNIFORMs, the size of the corresponding C++ object
-			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object
 			{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
 			{1, TEXTURE, 0, &TerrainTexture},
 			});
 
+		// missile
 		Missile.init(this, "models/missile.obj");
 		MissileTexture.init(this, "textures/missile/diff.jpg");
 		MissileDs.init(this, &standardDSL, {
@@ -166,26 +161,28 @@ protected:
 				{1, TEXTURE, 0, &MissileTexture},
 			});
 
-
-
 		/************************************************************************************/
+		// unlit pipeline 
+
 		skyboxDSL.init(this, {
 				{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT},
 				{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
 			});
 		
-		//skyboxPipeline.init(this, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", { &skyboxDSL });
 		skyboxPipeline.init(this, "shaders/sky/vert.spv", "shaders/sky/frag.spv", { &skyboxDSL});
 
+		/************************************************************************************/
+		// unlit objects
+
+		//skybox
 		skybox.init(this, "models/sky_sphere.obj");
-		//skyboxTexture.init(this, "textures/sky/");
 		skyboxTexture.init(this, "textures/animecloud.png");
 		skyboxDs.init(this, &skyboxDSL, {
 				{0, UNIFORM, sizeof(SkyboxBufferObject), nullptr},
 				{1, TEXTURE, 0, &skyboxTexture}
 			});
 
-		// put aim in skybox pipeline that uses unlit shaders
+		// aim dot
 		AimItem.init(this, "models/sky_sphere.obj");
 		AimItemTexture.init(this, "textures/aim.png");
 		AimItemDs.init(this, &skyboxDSL, {
@@ -227,34 +224,30 @@ protected:
 	// with their buffers and textures
 	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
 
+		/******************************************************************************************/
+		// standard pipeline
+
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			standardPipeline.graphicsPipeline);
 
+		// global light
 		vkCmdBindDescriptorSets(commandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
 			standardPipeline.pipelineLayout, 0, 1, &lightDs.descriptorSets[currentImage],
 			0, nullptr);
 
+		// terrain
 		VkBuffer vertexBuffers[] = { Terrain.vertexBuffer };
-		// property .vertexBuffer of models, contains the VkBuffer handle to its vertex buffer
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-		// property .indexBuffer of models, contains the VkBuffer handle to its index buffer
-		vkCmdBindIndexBuffer(commandBuffer, Terrain.indexBuffer, 0,
-			VK_INDEX_TYPE_UINT32);
-
-		// property .pipelineLayout of a pipeline contains its layout.
-		// property .descriptorSets of a descriptor set contains its elements.
+		vkCmdBindIndexBuffer(commandBuffer, Terrain.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 		vkCmdBindDescriptorSets(commandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
 			standardPipeline.pipelineLayout, 1, 1, &TerrainDs.descriptorSets[currentImage],
 			0, nullptr);
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(Terrain.indices.size()), 1, 0, 0, 0);
 
-		// property .indices.size() of models, contains the number of triangles * 3 of the mesh.
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(Terrain.indices.size()), 1, 0, 0, 0);
-
-
+		// missle
 		VkBuffer vertexBuffers2[] = { Missile.vertexBuffer };
 		VkDeviceSize offsets2[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers2, offsets2);
@@ -263,16 +256,16 @@ protected:
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
 			standardPipeline.pipelineLayout, 1, 1, &MissileDs.descriptorSets[currentImage],
 			0, nullptr);
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(Missile.indices.size()), 1, 0, 0, 0);
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(Missile.indices.size()), 1, 0, 0, 0);
 
 
 		/******************************************************************************************/
-		// unlit pipepeline
+		// unlit pipeline
 
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			skyboxPipeline.graphicsPipeline);
 
+		// skybox
 		VkBuffer vertexBuffers3[] = { skybox.vertexBuffer };
 		VkDeviceSize offsets3[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers3, offsets3);
@@ -281,10 +274,9 @@ protected:
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
 			skyboxPipeline.pipelineLayout, 0, 1, &skyboxDs.descriptorSets[currentImage],
 			0, nullptr);
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(skybox.indices.size()), 1, 0, 0, 0);
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(skybox.indices.size()), 1, 0, 0, 0);
 
-
+		// aim dot
 		VkBuffer vertexBuffers4[] = { AimItem.vertexBuffer };
 		VkDeviceSize offsets4[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers4, offsets4);
@@ -293,8 +285,7 @@ protected:
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
 			skyboxPipeline.pipelineLayout, 0, 1, &AimItemDs.descriptorSets[currentImage],
 			0, nullptr);
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(AimItem.indices.size()), 1, 0, 0, 0);
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(AimItem.indices.size()), 1, 0, 0, 0);
 
 	}
 
