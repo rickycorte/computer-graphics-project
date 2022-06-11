@@ -104,6 +104,9 @@ protected:
 	float missileSpeed = 8.0f;
 	float missileTopHeight = 100.0f;
 
+	float missilePointBrightness = 0.0f;
+	float missilePointAnimScale = 1.0;
+
 	// Here you set the main application parameters
 	void setWindowParameters() {
 		// window size, titile and initial background
@@ -553,8 +556,25 @@ protected:
 		vkUnmapMemory(device, TerrainDs.uniformBuffersMemory[0][currentImage]);
 
 		/************************************************************************************************************/
-		//light
+		// light
 
+		// point light anim
+		missilePointBrightness += missilePointAnimScale * deltaT;
+
+		// clamp and invert animation direction
+		if (missilePointBrightness > 1 && missilePointAnimScale > 0)
+		{
+			missilePointBrightness = 1.0f;
+			missilePointAnimScale *= -1;
+		}
+		if (missilePointBrightness < 0 && missilePointAnimScale < 0)
+		{
+			missilePointBrightness = 0.0f;
+			missilePointAnimScale *= -1;
+		}
+
+
+		// light settings
 		LightBufferObject lbo{};
 		lbo.globalLightDir = glm::vec3(-0.4830f, 0.8365f, -0.2588f);
 		lbo.globalLightColor = glm::vec3(0.1f);
@@ -564,7 +584,7 @@ protected:
 
 		lbo.pointlightPos = missilePosition + glm::vec3(0, 4, 0); // TODO:rotate offeset
 		lbo.pointlightColor = glm::vec3(255.0f, 0.0f, 0.0f) / 255.0f;
-		lbo.pointlightSettings = glm::vec3(0.5f, 4.0f, 50.0f);
+		lbo.pointlightSettings = glm::vec3(0.5f, 4.0f, 50.0f * missilePointBrightness);
 
 		lbo.spotlightDir = missileDirection;
 		lbo.spotlightPos = missilePosition;
