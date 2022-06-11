@@ -72,7 +72,7 @@ void main() {
 		lbo.spotlightSettings.y,
 		lbo.spotlightSettings.z,
 		lbo.spotlightSettings.w,
-		lbo.spotlightColor)
+		lbo.spotlightColor
 	);
 
 	vec3 directional_color = lbo.globalLightColor;
