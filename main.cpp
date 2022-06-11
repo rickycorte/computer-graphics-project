@@ -13,10 +13,18 @@ struct LightBufferObject {
 	alignas(16) glm::vec3 globalLightDir;
 	alignas(16) glm::vec3 globalLightColor;
 
+
+	alignas(16) glm::vec3 pointlightPos;
+	alignas(16) glm::vec3 pointlightColor;
+	// radius, decay, brightness
+	alignas(16) glm::vec3 pointlightSettings;
+
+
 	alignas(16) glm::vec3 spotlightPos;
 	alignas(16) glm::vec3 spotlightDir;
 	alignas(16) glm::vec3 spotlightColor;
-	alignas(16) glm::vec4 spotlightSettings; // radius, decay, cos_in, cos_out
+	// radius, decay, cos_in, cos_out
+	alignas(16) glm::vec4 spotlightSettings;
 };
 
 
@@ -545,6 +553,10 @@ protected:
 		LightBufferObject lbo{};
 		lbo.globalLightDir = glm::vec3(-0.4830f, 0.8365f, -0.2588f);
 		lbo.globalLightColor = glm::vec3(0.1f);
+
+		lbo.pointlightPos = missilePosition + glm::vec3(0, 4, 0); // TODO:rotate offeset
+		lbo.pointlightColor = glm::vec3(0.0f, 0.0f, 255.0f) / 255.0f;
+		lbo.pointlightSettings = glm::vec3(0.5f, 4.0f, 50.0f);
 
 		lbo.spotlightDir = missileDirection;
 		lbo.spotlightPos = missilePosition;
