@@ -3,6 +3,11 @@
 layout(set=0, binding = 0) uniform LightBufferObject {
 	vec3 globalLightDir;
 	vec3 globalLightColor;
+
+	vec3 spotlightPos;
+	vec3 spotlightDir;
+	vec3 spotlightColor;
+	vec4 spotlightSettings;
 } lbo;
 
 layout(set=1, binding = 1) uniform sampler2D texSampler;
@@ -12,9 +17,6 @@ layout(location = 0) in vec3 fragViewDir;
 layout(location = 1) in vec3 fragNorm;
 layout(location = 2) in vec2 fragTexCoord;
 layout(location = 3) in vec3 fragPos;
-
-layout(location = 4) in vec3 lightPos;
-layout(location = 5) in vec3 lightDir;
 
 layout(location = 0) out vec4 outColor;
 
@@ -62,10 +64,19 @@ void main() {
 	//outColor = vec4(clamp(ambient + diffuse + specular, vec3(0.0f), vec3(0.5f)), 1.0f); //questo viene sovraascritto per testare, se viene sommato alla riga sotto la spotlight non si vede
 	
 	//TODO: non hardcoddare i parametro
-	vec3 missile_engine_light = spot_light_color(fragPos, lightPos, -lightDir, 25, 1.5f, 0.96f, 0.65f, normalize(vec3(253.0f/255,179.0f/255,6.0f/255)));
+	vec3 missile_engine_light = spot_light_color(
+		fragPos,
+		lbo.spotlightPos,
+		lbo.spotlightDir,
+		lbo.spotlightSettings.x,
+		lbo.spotlightSettings.y,
+		lbo.spotlightSettings.z,
+		lbo.spotlightSettings.w,
+		lbo.spotlightColor)
+	);
 
 	vec3 directional_color = lbo.globalLightColor;
-	vec3 top_pos = lightPos + vec3(0, 4, 0); // TODO: non hardcoddare la posizione della cima, btw non va quando il razzo ruota per ovvie ragioni :#
+	vec3 top_pos = lbo.spotlightPos + vec3(0, 4, 0); // TODO: non hardcoddare la posizione della cima, btw non va quando il razzo ruota per ovvie ragioni :#
 	vec3 missile_top_light = 50 * point_light_color(fragPos, top_pos, 0.5f, 4.0f, vec3(1,0,0)); // front multiplier is "intensity"
 
 	vec3 light_sum = missile_top_light + missile_engine_light + directional_color;

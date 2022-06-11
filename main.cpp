@@ -7,13 +7,16 @@ struct UniformBufferObject {
 	alignas(16) glm::mat4 model;
 	alignas(16) glm::mat4 view;
 	alignas(16) glm::mat4 proj;
-	alignas(16) glm::vec3 missLightPos;
-	alignas(16) glm::vec3 missLightDir;
 };
 
 struct LightBufferObject {
 	alignas(16) glm::vec3 globalLightDir;
 	alignas(16) glm::vec3 globalLightColor;
+
+	alignas(16) glm::vec3 spotlightPos;
+	alignas(16) glm::vec3 spotlightDir;
+	alignas(16) glm::vec3 spotlightColor;
+	alignas(16) glm::vec4 spotlightSettings; // radius, decay, cos_in, cos_out
 };
 
 
@@ -509,10 +512,6 @@ protected:
 
 		ubo.model = glm::scale(ubo.model, missileScale * glm::vec3(1));
 
-		ubo.missLightDir = -missileDirection;
-		ubo.missLightPos = missilePosition;
-
-
 		vkMapMemory(device, MissileDs.uniformBuffersMemory[0][currentImage], 0,
 			sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
@@ -543,9 +542,14 @@ protected:
 		/************************************************************************************************************/
 		//light
 
-		LightBufferObject lbo;
+		LightBufferObject lbo{};
 		lbo.globalLightDir = glm::vec3(-0.4830f, 0.8365f, -0.2588f);
-		lbo.globalLightColor = glm::vec3(0.0f);
+		lbo.globalLightColor = glm::vec3(0.1f);
+
+		lbo.spotlightDir = missileDirection;
+		lbo.spotlightPos = missilePosition;
+		lbo.spotlightColor = glm::vec3(253.0f, 179.0f, 6.0f) / 255.0f;
+		lbo.spotlightSettings = glm::vec4(25.0f, 1.5f, 0.96f, 0.65f); 
 
 		// Here is where you actually update your uniforms
 		vkMapMemory(device, lightDs.uniformBuffersMemory[0][currentImage], 0, sizeof(lbo), 0, &data);
