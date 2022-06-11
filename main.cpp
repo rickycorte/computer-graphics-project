@@ -13,6 +13,8 @@ struct LightBufferObject {
 	alignas(16) glm::vec3 globalLightDir;
 	alignas(16) glm::vec3 globalLightColor;
 
+	alignas(16) glm::vec3 ambientTopColor;
+	alignas(16) glm::vec3 ambientBottomColor;
 
 	alignas(16) glm::vec3 pointlightPos;
 	alignas(16) glm::vec3 pointlightColor;
@@ -553,6 +555,9 @@ protected:
 		LightBufferObject lbo{};
 		lbo.globalLightDir = glm::vec3(-0.4830f, 0.8365f, -0.2588f);
 		lbo.globalLightColor = glm::vec3(0.1f);
+
+		lbo.ambientTopColor = glm::vec3(30.0f, 26.0f, 219.0f) / 255.0f;
+		lbo.ambientBottomColor = glm::vec3(18.0f, 15.0f, 128.0f) / 255.0f;
 
 		lbo.pointlightPos = missilePosition + glm::vec3(0, 4, 0); // TODO:rotate offeset
 		lbo.pointlightColor = glm::vec3(0.0f, 0.0f, 255.0f) / 255.0f;

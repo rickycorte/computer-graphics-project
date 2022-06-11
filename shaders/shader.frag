@@ -4,6 +4,9 @@ layout(set=0, binding = 0) uniform LightBufferObject {
 	vec3 globalLightDir;
 	vec3 globalLightColor;
 
+	vec3 ambientTopColor;
+	vec3 ambientBottomColor;
+
 	vec3 pointlightPos;
 	vec3 pointlightColor;
 	vec3 pointlightSettings;
@@ -59,15 +62,10 @@ void main() {
 	vec3 specular = specColor * pow(max(dot(R,V), 0.0f), specPower);
 
 	// Hemispheric ambient
-	// TODO: no hardcode (sono due blu del cielo)
-	vec3 ambTopColor = vec3(60.0f/255, 70.0f/255, 201.0f/255);
-	vec3 ambBottomColor = vec3(29.0f/255, 34.0f/255, 97.0f/255);
+	vec3 ambient = (.5f * (1 + N * lbo.ambientTopColor) + .5f * (1 - N * lbo.ambientBottomColor)) * diffColor;
+		
+	vec3 directional_color = lbo.globalLightColor;
 
-	vec3 ambient = (.5f * (1 + N * ambTopColor) + .5f * (1 - N * ambBottomColor)) * diffColor;
-	
-	//outColor = vec4(clamp(ambient + diffuse + specular, vec3(0.0f), vec3(0.5f)), 1.0f); //questo viene sovraascritto per testare, se viene sommato alla riga sotto la spotlight non si vede
-	
-	//TODO: non hardcoddare i parametro
 	vec3 missile_engine_light = spot_light_color(
 		fragPos,
 		lbo.spotlightPos,
@@ -78,8 +76,6 @@ void main() {
 		lbo.spotlightSettings.w,
 		lbo.spotlightColor
 	);
-
-	vec3 directional_color = lbo.globalLightColor;
 	
 	vec3 missile_top_light = lbo.pointlightSettings.z * point_light_color(
 		fragPos,
@@ -89,8 +85,8 @@ void main() {
 		lbo.pointlightColor
 	);
 
-	vec3 light_sum = missile_top_light + missile_engine_light + directional_color;
+	vec3 light = missile_top_light + missile_engine_light + directional_color;
 
-	outColor = vec4(clamp((diffuse + specular + ambient) * light_sum, vec3(0.0f), vec3(1.0f)), 1.0f);
+	outColor = vec4(clamp((diffuse + specular + ambient) * light, vec3(0.0f), vec3(1.0f)), 1.0f);
 }
 
