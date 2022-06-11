@@ -64,8 +64,6 @@ void main() {
 	// Phong specular
 	vec3 specular = lbo.specularSettings.xyz * pow(max(dot(R,V), 0.0f), lbo.specularSettings.w);
 
-	// Hemispheric ambient
-	vec3 ambient = (.5f * (1 + N * lbo.ambientTopColor) + .5f * (1 - N * lbo.ambientBottomColor)) * diffColor;
 	
 	/*********************************************************************************/
 	// light
@@ -91,11 +89,14 @@ void main() {
 		lbo.pointlightColor
 	);
 
-	vec3 light = missile_top_light + missile_engine_light + directional_color;
+	// Hemispheric ambient
+	vec3 ambient = (.5f * (1 + N * lbo.ambientTopColor) + .5f * (1 - N * lbo.ambientBottomColor));
+
+	vec3 light = missile_top_light + missile_engine_light + directional_color + .1f * ambient;
 
 	/*********************************************************************************/
 	// output
 
-	outColor = vec4(clamp((diffuse + specular + ambient) * light, vec3(0.0f), vec3(1.0f)), 1.0f);
+	outColor = vec4(clamp((diffuse + specular) * light, vec3(0.0f), vec3(1.0f)), 1.0f);
 }
 

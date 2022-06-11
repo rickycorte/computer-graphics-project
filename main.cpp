@@ -563,7 +563,7 @@ protected:
 		lbo.ambientBottomColor = glm::vec3(18.0f, 15.0f, 128.0f) / 255.0f;
 
 		lbo.pointlightPos = missilePosition + glm::vec3(0, 4, 0); // TODO:rotate offeset
-		lbo.pointlightColor = glm::vec3(0.0f, 0.0f, 255.0f) / 255.0f;
+		lbo.pointlightColor = glm::vec3(255.0f, 0.0f, 0.0f) / 255.0f;
 		lbo.pointlightSettings = glm::vec3(0.5f, 4.0f, 50.0f);
 
 		lbo.spotlightDir = missileDirection;
