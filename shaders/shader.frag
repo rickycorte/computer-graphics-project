@@ -15,6 +15,8 @@ layout(set=0, binding = 0) uniform LightBufferObject {
 	vec3 spotlightDir;
 	vec3 spotlightColor;
 	vec4 spotlightSettings;
+
+	vec4 specularSettings;
 } lbo;
 
 layout(set=1, binding = 1) uniform sampler2D texSampler;
@@ -47,23 +49,27 @@ vec3 spot_light_color(vec3 fragPos, vec3 lightPos, vec3 lightDir, float dist, fl
 
 void main() {
 	const vec3  diffColor = texture(texSampler, fragTexCoord).rgb;
-	const vec3  specColor = vec3(1.0f, 1.0f, 1.0f);
-	const float specPower = 150.0f;
 
 	const vec3 L = lbo.globalLightDir; // directional light dir
 	
-	vec3 N = normalize(fragNorm);
-	vec3 R = -reflect(L, N);
-	vec3 V = normalize(fragViewDir);
+	const vec3 N = normalize(fragNorm);
+	const vec3 R = -reflect(L, N);
+	const vec3 V = normalize(fragViewDir);
 	
+	/*********************************************************************************/
+	// color
+
 	// Lambert diffuse
 	vec3 diffuse  = diffColor * max(dot(N,L), 0.0f);
 	// Phong specular
-	vec3 specular = specColor * pow(max(dot(R,V), 0.0f), specPower);
+	vec3 specular = lbo.specularSettings.xyz * pow(max(dot(R,V), 0.0f), lbo.specularSettings.w);
 
 	// Hemispheric ambient
 	vec3 ambient = (.5f * (1 + N * lbo.ambientTopColor) + .5f * (1 - N * lbo.ambientBottomColor)) * diffColor;
-		
+	
+	/*********************************************************************************/
+	// light
+
 	vec3 directional_color = lbo.globalLightColor;
 
 	vec3 missile_engine_light = spot_light_color(
@@ -86,6 +92,9 @@ void main() {
 	);
 
 	vec3 light = missile_top_light + missile_engine_light + directional_color;
+
+	/*********************************************************************************/
+	// output
 
 	outColor = vec4(clamp((diffuse + specular + ambient) * light, vec3(0.0f), vec3(1.0f)), 1.0f);
 }

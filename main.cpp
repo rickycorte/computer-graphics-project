@@ -27,6 +27,9 @@ struct LightBufferObject {
 	alignas(16) glm::vec3 spotlightColor;
 	// radius, decay, cos_in, cos_out
 	alignas(16) glm::vec4 spotlightSettings;
+
+	//xyz = color, w = power
+	alignas(16) glm::vec4 specularSettings;
 };
 
 
@@ -567,6 +570,8 @@ protected:
 		lbo.spotlightPos = missilePosition;
 		lbo.spotlightColor = glm::vec3(253.0f, 179.0f, 6.0f) / 255.0f;
 		lbo.spotlightSettings = glm::vec4(25.0f, 1.5f, 0.96f, 0.65f); 
+
+		lbo.specularSettings = glm::vec4(1.0f, 1.0f, 1.0f, 150.0f);
 
 		// Here is where you actually update your uniforms
 		vkMapMemory(device, lightDs.uniformBuffersMemory[0][currentImage], 0, sizeof(lbo), 0, &data);
