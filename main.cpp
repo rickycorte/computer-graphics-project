@@ -11,6 +11,12 @@ struct UniformBufferObject {
 	alignas(16) glm::vec3 missLightDir;
 };
 
+struct LightBufferObject {
+	alignas(16) glm::vec3 globalLightDir;
+	alignas(16) glm::vec3 globalLightColor;
+};
+
+
 struct SkyboxBufferObject {
 	alignas(16) glm::mat4 model;
 	alignas(16) glm::mat4 view;
@@ -24,6 +30,9 @@ protected:
 
 	// Descriptor Layouts [what will be passed to the shaders]
 	DescriptorSetLayout standardDSL;
+
+	DescriptorSetLayout lightDSL;
+	DescriptorSet lightDs;
 
 	// Pipelines [Shader couples]
 	Pipeline standardPipeline;
@@ -105,11 +114,17 @@ protected:
 			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT},
 			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
 			});
+		
+		lightDSL.init(this, {
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT},
+			});
+
+		lightDs.init(this, &lightDSL, { {0, UNIFORM, sizeof(LightBufferObject), nullptr} });
 
 		// Pipelines [Shader couples]
 		// The last array, is a vector of pointer to the layouts of the sets that will
 		// be used in this pipeline. The first element will be set 0, and so on..
-		standardPipeline.init(this, "shaders/vert.spv", "shaders/frag.spv", { &standardDSL });
+		standardPipeline.init(this, "shaders/vert.spv", "shaders/frag.spv", { &lightDSL, &standardDSL });
 
 		// Models, textures and Descriptors (values assigned to the uniforms)
 		Terrain.init(this, "models/terrain.obj");
@@ -121,24 +136,18 @@ protected:
 			// second element : UNIFORM or TEXTURE (an enum) depending on the type
 			// third  element : only for UNIFORMs, the size of the corresponding C++ object
 			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object
-						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-						{1, TEXTURE, 0, &TerrainTexture}
+			{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+			{1, TEXTURE, 0, &TerrainTexture},
 			});
 
 		Missile.init(this, "models/missile.obj");
 		MissileTexture.init(this, "textures/missile/diff.jpg");
 		MissileDs.init(this, &standardDSL, {
 				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-				{1, TEXTURE, 0, &MissileTexture}
+				{1, TEXTURE, 0, &MissileTexture},
 			});
 
 
-		AimItem.init(this, "models/sky_sphere.obj");
-		AimItemTexture.init(this, "textures/aim.png");
-		AimItemDs.init(this, &standardDSL, {
-				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-				{1, TEXTURE, 0, &AimItemTexture}
-			});
 
 		/************************************************************************************/
 		skyboxDSL.init(this, {
@@ -155,6 +164,14 @@ protected:
 		skyboxDs.init(this, &skyboxDSL, {
 				{0, UNIFORM, sizeof(SkyboxBufferObject), nullptr},
 				{1, TEXTURE, 0, &skyboxTexture}
+			});
+
+		// put aim in skybox pipeline that uses unlit shaders
+		AimItem.init(this, "models/sky_sphere.obj");
+		AimItemTexture.init(this, "textures/aim.png");
+		AimItemDs.init(this, &skyboxDSL, {
+				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+				{1, TEXTURE, 0, &AimItemTexture},
 			});
 	}
 
@@ -181,6 +198,9 @@ protected:
 
 		skyboxPipeline.cleanup();
 		skyboxDSL.cleanup();
+
+		lightDs.cleanup();
+		lightDSL.cleanup();
 	}
 
 	// Here it is the creation of the command buffer:
@@ -190,6 +210,11 @@ protected:
 
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			standardPipeline.graphicsPipeline);
+
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			standardPipeline.pipelineLayout, 0, 1, &lightDs.descriptorSets[currentImage],
+			0, nullptr);
 
 		VkBuffer vertexBuffers[] = { Terrain.vertexBuffer };
 		// property .vertexBuffer of models, contains the VkBuffer handle to its vertex buffer
@@ -203,7 +228,7 @@ protected:
 		// property .descriptorSets of a descriptor set contains its elements.
 		vkCmdBindDescriptorSets(commandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			standardPipeline.pipelineLayout, 0, 1, &TerrainDs.descriptorSets[currentImage],
+			standardPipeline.pipelineLayout, 1, 1, &TerrainDs.descriptorSets[currentImage],
 			0, nullptr);
 
 		// property .indices.size() of models, contains the number of triangles * 3 of the mesh.
@@ -217,24 +242,14 @@ protected:
 		vkCmdBindIndexBuffer(commandBuffer, Missile.indexBuffer, 0,VK_INDEX_TYPE_UINT32);
 		vkCmdBindDescriptorSets(commandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			standardPipeline.pipelineLayout, 0, 1, &MissileDs.descriptorSets[currentImage],
+			standardPipeline.pipelineLayout, 1, 1, &MissileDs.descriptorSets[currentImage],
 			0, nullptr);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(Missile.indices.size()), 1, 0, 0, 0);
 
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			skyboxPipeline.graphicsPipeline);
 
-		VkBuffer vertexBuffers4[] = { AimItem.vertexBuffer };
-		VkDeviceSize offsets4[] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers4, offsets4);
-		vkCmdBindIndexBuffer(commandBuffer, AimItem.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-		vkCmdBindDescriptorSets(commandBuffer,
-			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			standardPipeline.pipelineLayout, 0, 1, &AimItemDs.descriptorSets[currentImage],
-			0, nullptr);
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(AimItem.indices.size()), 1, 0, 0, 0);
+		/******************************************************************************************/
+		// unlit pipepeline
 
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			skyboxPipeline.graphicsPipeline);
@@ -249,6 +264,19 @@ protected:
 			0, nullptr);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(skybox.indices.size()), 1, 0, 0, 0);
+
+
+		VkBuffer vertexBuffers4[] = { AimItem.vertexBuffer };
+		VkDeviceSize offsets4[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers4, offsets4);
+		vkCmdBindIndexBuffer(commandBuffer, AimItem.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			skyboxPipeline.pipelineLayout, 0, 1, &AimItemDs.descriptorSets[currentImage],
+			0, nullptr);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(AimItem.indices.size()), 1, 0, 0, 0);
+
 	}
 
 	//crea world matrix del missile
@@ -511,6 +539,18 @@ protected:
 			sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(device, TerrainDs.uniformBuffersMemory[0][currentImage]);
+
+		/************************************************************************************************************/
+		//light
+
+		LightBufferObject lbo;
+		lbo.globalLightDir = glm::vec3(-0.4830f, 0.8365f, -0.2588f);
+		lbo.globalLightColor = glm::vec3(0.0f);
+
+		// Here is where you actually update your uniforms
+		vkMapMemory(device, lightDs.uniformBuffersMemory[0][currentImage], 0, sizeof(lbo), 0, &data);
+		memcpy(data, &lbo, sizeof(lbo));
+		vkUnmapMemory(device, lightDs.uniformBuffersMemory[0][currentImage]);
 
 		/************************************************************************************************************/
 		//  skybox
