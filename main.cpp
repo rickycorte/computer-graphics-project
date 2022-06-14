@@ -564,7 +564,7 @@ protected:
 			missilePointAnimScale *= -1;
 		}
 
-
+		
 		// light settings
 		LightBufferObject lbo{};
 		lbo.globalLightDir = glm::vec3(-0.4830f, 0.8365f, -0.2588f);
@@ -573,7 +573,12 @@ protected:
 		lbo.ambientTopColor = glm::vec3(30.0f, 26.0f, 219.0f) / 255.0f;
 		lbo.ambientBottomColor = glm::vec3(18.0f, 15.0f, 128.0f) / 255.0f;
 
-		lbo.pointlightPos = missilePosition + glm::vec3(0, 4, 0); // TODO:rotate offeset
+		//std::cout << "Missile direction: " << missileDirection.x << " " << missileDirection.y << " " << missileDirection.z << " " << glm::length(missileDirection) << std::endl;
+		float offsetDiscesa = 0;
+		if (missileDirection.y < 0) {
+			offsetDiscesa = 0.5;
+		}
+		lbo.pointlightPos = missilePosition + (3.9f-offsetDiscesa)*missileDirection; // TODO:rotate offeset
 		lbo.pointlightColor = glm::vec3(255.0f, 0.0f, 0.0f) / 255.0f;
 		lbo.pointlightSettings = glm::vec3(0.5f, 4.0f, 50.0f * missilePointBrightness);
 
