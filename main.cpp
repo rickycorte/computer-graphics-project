@@ -99,6 +99,7 @@ protected:
 	// simulation settings and vars
 	bool isSimulationRunning = false;
 	bool aimMode = false;
+	float isPaused = 0;
 
 	glm::vec3 missileDestination = glm::vec3(-10.0f, 0.0f, 15.0f);
 	float missileSpeed = 8.0f;
@@ -301,8 +302,8 @@ protected:
 		yaw = atan2(destination[2] - startpoint[2], destination[0] - startpoint[0]);
 		//std::cout << "Yaw (deg): " << 180 * yaw / 3.14 << std::endl;
 		//aggiornamento posizione
-		missilePosition[0] += glm::cos(yaw) * missileSpeed * dt;
-		missilePosition[2] += glm::sin(yaw) * missileSpeed * dt;
+		missilePosition[0] += glm::cos(yaw) * missileSpeed * dt*(1-isPaused);
+		missilePosition[2] += glm::sin(yaw) * missileSpeed * dt*(1-isPaused);
 
 		//distanza piano su piano xz
 		float actual_distance = sqrt(pow(missilePosition[0] - startpoint[0], 2) + pow(missilePosition[2] - startpoint[2], 2));
@@ -385,6 +386,7 @@ protected:
 		static float lastTime = 0.0f;
 
 		static float spaceToggleTimer = 0.0f;
+		static float pauseToggleTimer = 0.0f;
 
 		auto currentTime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration<float, std::chrono::seconds::period>
@@ -404,6 +406,7 @@ protected:
 
 
 		spaceToggleTimer = spaceToggleTimer > 0 ? spaceToggleTimer - deltaT : 0; //this timer is used to block multiplte inputs on spacebar
+		pauseToggleTimer = pauseToggleTimer > 0 ? pauseToggleTimer - deltaT : 0; //this timer is used to block multiplte inputs on P key
 
 		glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
 		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
@@ -435,6 +438,16 @@ protected:
 			else
 				CamAng.x += deltaT * ROT_SPEED;
 		}
+		if (glfwGetKey(window, GLFW_KEY_P) && !aimMode && isSimulationRunning && pauseToggleTimer == 0.0f) {
+			isPaused = 1 - isPaused;
+			pauseToggleTimer += .5f; // delay until next input
+			if (isPaused == 1) {
+				std::cout << "Simulation paused" << std::endl;
+			}
+			else {
+				std::cout << "Simulation resumed" << std::endl;
+			}
+		}
 
 		if (glfwGetKey(window, GLFW_KEY_SPACE) && spaceToggleTimer == 0.0f)
 		{
@@ -444,6 +457,7 @@ protected:
 				missileDirection = glm::vec3(0, 1, 0);
 				std::cout << "Missile current position resetted\n";
 				aimMode = false;
+				isPaused = 0;
 			}
 
 			spaceToggleTimer += .5f; // delay until next input
@@ -574,12 +588,11 @@ protected:
 		lbo.ambientBottomColor = glm::vec3(18.0f, 15.0f, 128.0f) / 255.0f;
 
 		//std::cout << "Missile direction: " << missileDirection.x << " " << missileDirection.y << " " << missileDirection.z << " " << glm::length(missileDirection) << std::endl;
-		float offsetDiscesa = 0;
-		if (missileDirection.y < 0) {
-			offsetDiscesa = 0.5;
-		}
-		lbo.pointlightPos = missilePosition + (3.9f-offsetDiscesa)*missileDirection; // TODO:rotate offeset
+		lbo.pointlightPos = missilePosition + 4.f*missileDirection; // TODO:rotate offeset
 		lbo.pointlightColor = glm::vec3(255.0f, 0.0f, 0.0f) / 255.0f;
+		if (missileDirection.y < 0.15) {
+			lbo.pointlightColor = glm::vec3(0.0f, 0.0f, 0.0f);
+		}
 		lbo.pointlightSettings = glm::vec3(0.5f, 4.0f, 50.0f * missilePointBrightness);
 
 		lbo.spotlightDir = missileDirection;
