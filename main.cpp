@@ -99,7 +99,8 @@ protected:
 	// simulation settings and vars
 	bool isSimulationRunning = false;
 	bool aimMode = false;
-	float isPaused = 0;
+	bool isPaused = false;
+	glm::mat4 oldMissileWorldMatrix;
 
 	glm::vec3 missileDestination = glm::vec3(-10.0f, 0.0f, 15.0f);
 	float missileSpeed = 8.0f;
@@ -302,8 +303,8 @@ protected:
 		yaw = atan2(destination[2] - startpoint[2], destination[0] - startpoint[0]);
 		//std::cout << "Yaw (deg): " << 180 * yaw / 3.14 << std::endl;
 		//aggiornamento posizione
-		missilePosition[0] += glm::cos(yaw) * missileSpeed * dt*(1-isPaused);
-		missilePosition[2] += glm::sin(yaw) * missileSpeed * dt*(1-isPaused);
+		missilePosition[0] += glm::cos(yaw) * missileSpeed * dt;
+		missilePosition[2] += glm::sin(yaw) * missileSpeed * dt;
 
 		//distanza piano su piano xz
 		float actual_distance = sqrt(pow(missilePosition[0] - startpoint[0], 2) + pow(missilePosition[2] - startpoint[2], 2));
@@ -439,9 +440,9 @@ protected:
 				CamAng.x += deltaT * ROT_SPEED;
 		}
 		if (glfwGetKey(window, GLFW_KEY_P) && !aimMode && isSimulationRunning && pauseToggleTimer == 0.0f) {
-			isPaused = 1 - isPaused;
+			isPaused = !isPaused;
 			pauseToggleTimer += .5f; // delay until next input
-			if (isPaused == 1) {
+			if (isPaused) {
 				std::cout << "Simulation paused" << std::endl;
 			}
 			else {
@@ -457,7 +458,7 @@ protected:
 				missileDirection = glm::vec3(0, 1, 0);
 				std::cout << "Missile current position resetted\n";
 				aimMode = false;
-				isPaused = 0;
+				isPaused = false;
 			}
 
 			spaceToggleTimer += .5f; // delay until next input
@@ -516,8 +517,13 @@ protected:
 
 		if (isSimulationRunning)
 		{
-			ubo.model = getMissileWorldMatrix(missileStartPostion, missileDestination, deltaT); // calculate moving position
-
+			if (!isPaused) {
+				ubo.model = getMissileWorldMatrix(missileStartPostion, missileDestination, deltaT); // calculate moving position
+				oldMissileWorldMatrix = ubo.model;
+			}
+			else {
+				ubo.model = oldMissileWorldMatrix;
+			}
 			if (glm::distance(missilePosition, missileDestination) < 0.3f)
 			{
 				isSimulationRunning = false;
