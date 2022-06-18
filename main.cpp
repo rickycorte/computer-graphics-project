@@ -524,7 +524,7 @@ protected:
 			else {
 				ubo.model = oldMissileWorldMatrix;
 			}
-			if (glm::distance(missilePosition, missileDestination) < 0.3f)
+			if (glm::distance(missilePosition, missileDestination) < 0.5f )
 			{
 				isSimulationRunning = false;
 				std::cout << "Simulation ended\n";
